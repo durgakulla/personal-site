@@ -1,0 +1,85 @@
+---
+const navLinks = [
+  { href: '/', label: 'Work' },
+  { href: '/projects', label: 'Projects' },
+  { href: '/about', label: 'About' },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="w-full px-8 py-6 flex items-center justify-between">
+  <a
+    href="/"
+    class="font-serif text-xl tracking-wide text-stone-900 hover:opacity-70 transition-opacity"
+  >
+    Durga Kullakanda
+  </a>
+
+  <!-- Desktop nav -->
+  <nav class="hidden md:flex items-center gap-8">
+    {
+      navLinks.map(({ href, label }) => (
+        <a
+          href={href}
+          class={`text-sm tracking-widest uppercase transition-opacity hover:opacity-60 ${
+            currentPath === href ? 'opacity-100 border-b border-stone-900' : 'opacity-50'
+          }`}
+        >
+          {label}
+        </a>
+      ))
+    }
+  </nav>
+
+  <!-- Mobile hamburger -->
+  <button
+    id="menu-toggle"
+    class="md:hidden flex flex-col gap-1.5 p-1"
+    aria-label="Toggle menu"
+  >
+    <span class="block w-6 h-px bg-stone-900 transition-all" id="bar1"></span>
+    <span class="block w-6 h-px bg-stone-900 transition-all" id="bar2"></span>
+    <span class="block w-4 h-px bg-stone-900 transition-all" id="bar3"></span>
+  </button>
+</header>
+
+<!-- Mobile menu overlay -->
+<div
+  id="mobile-menu"
+  class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center gap-10 opacity-0 pointer-events-none transition-opacity duration-300"
+>
+  <button
+    id="menu-close"
+    class="absolute top-6 right-8 text-stone-400 hover:text-stone-900 transition-colors text-2xl"
+    aria-label="Close menu"
+  >
+    &times;
+  </button>
+  {
+    navLinks.map(({ href, label }) => (
+      <a
+        href={href}
+        class="font-serif text-3xl tracking-wide text-stone-900 hover:opacity-60 transition-opacity"
+      >
+        {label}
+      </a>
+    ))
+  }
+</div>
+
+<script>
+  const toggle = document.getElementById('menu-toggle');
+  const menu = document.getElementById('mobile-menu');
+  const close = document.getElementById('menu-close');
+
+  toggle?.addEventListener('click', () => {
+    menu?.classList.remove('opacity-0', 'pointer-events-none');
+    menu?.classList.add('opacity-100');
+  });
+
+  close?.addEventListener('click', () => {
+    menu?.classList.add('opacity-0', 'pointer-events-none');
+    menu?.classList.remove('opacity-100');
+  });
+</script>
