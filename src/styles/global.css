@@ -1,40 +1,49 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-sans: 'Inter', system-ui, sans-serif;
-    --font-serif: 'Playfair Display', Georgia, serif;
-  }
+@custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
   html {
-    font-family: var(--font-sans);
+    font-family: 'Barlow', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-
-  body {
-    @apply bg-white text-stone-900;
-  }
 }
 
-/* Masonry grid using CSS columns */
-.masonry {
-  columns: 2;
-  column-gap: 1rem;
-}
-
+/* Fluid side margins: 0px at 900px viewport, 100px at 1600px+ */
 @media (min-width: 768px) {
-  .masonry {
-    columns: 3;
+  body {
+    padding-left: clamp(32px, calc((100vw - 768px) * 0.1 + 32px), 120px);
+    padding-right: clamp(0px, calc((100vw - 1000px) * 0.143), 100px);
   }
 }
 
-@media (min-width: 1280px) {
-  .masonry {
-    columns: 4;
-  }
+img {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+img.loaded {
+  opacity: 1;
 }
 
-.masonry-item {
-  break-inside: avoid;
-  margin-bottom: 1rem;
+.masonry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.masonry-row {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+}
+
+.masonry-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

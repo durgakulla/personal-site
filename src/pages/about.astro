@@ -1,91 +1,67 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Nav from '../components/Nav.astro';
-import Footer from '../components/Footer.astro';
+import about from '../data/about.json';
+import socials from '../data/socials.json';
 
-const socials = [
-  {
-    label: 'Instagram',
-    href: 'https://instagram.com/YOUR_HANDLE',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>`,
-  },
-  {
-    label: 'LinkedIn',
-    href: 'https://linkedin.com/in/YOUR_HANDLE',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>`,
-  },
-  {
-    label: 'GitHub',
-    href: 'https://github.com/YOUR_HANDLE',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`,
-  },
-  {
-    label: 'Email',
-    href: 'mailto:durga.kulla@gmail.com',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
-  },
-];
+const iconMap: Record<string, string> = {
+  Instagram: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>`,
+  LinkedIn:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>`,
+  GitHub:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`,
+  Email:     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+};
 ---
 
-<Layout title="About — Durga Kullakanda">
-  <Nav />
-
-  <main class="flex-1 px-6 md:px-8 pb-16 max-w-4xl mx-auto w-full">
-    <div class="text-center mb-12">
-      <p class="text-xs tracking-[0.3em] uppercase text-stone-400">About</p>
-    </div>
-
-    <div class="grid md:grid-cols-2 gap-12 md:gap-20 items-start">
+<Layout title={`About — ${about.name}`} activePage="about">
+  <div class="px-6 md:px-12 pt-4 md:pt-16 pb-10 max-w-4xl">
+    <div class="flex flex-wrap gap-6 sm:gap-16 items-start sm:justify-center">
       <!-- Photo -->
-      <div class="aspect-[3/4] bg-stone-100 overflow-hidden">
+      <div class="flex sm:block justify-center w-full sm:w-64 shrink-0">
+      <div class="aspect-square rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden w-48 sm:w-full sm:mt-12">
         <img
           src="/images/profile.jpg"
           alt="Durga Kullakanda"
           class="w-full h-full object-cover"
         />
       </div>
+      </div>
 
       <!-- Bio -->
-      <div class="flex flex-col gap-8 pt-2">
+      <div class="flex flex-col gap-8 pt-1 flex-1 sm:min-w-[22rem] max-w-xl">
         <div>
-          <h1 class="font-serif text-3xl md:text-4xl mb-6">Durga Kullakanda</h1>
-          <div class="space-y-4 text-stone-600 leading-relaxed text-sm">
-            <p>
-              I'm a photographer based in [Your City]. I capture moments, places, and people
-              with an eye for quiet beauty and light.
-            </p>
-            <p>
-              My work spans portraiture, landscape, and street photography. When I'm not
-              behind a camera, I'm building things on the internet.
-            </p>
-            <p>
-              Feel free to get in touch if you'd like to work together or just say hello.
-            </p>
+          <h1 class="hidden md:block font-bold text-3xl tracking-tight mb-5">{about.heading}</h1>
+          <div class="space-y-4 text-stone-700 dark:text-stone-300 leading-relaxed text-base">
+            {about.bio.map(para => <p>{para}</p>)}
           </div>
         </div>
 
-        <!-- Socials -->
-        <div>
-          <p class="text-xs tracking-[0.2em] uppercase text-stone-400 mb-4">Find me on</p>
-          <div class="flex flex-col gap-3">
-            {
-              socials.map(({ label, href, icon }) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex items-center gap-3 text-stone-700 hover:text-stone-900 transition-colors group text-sm"
-                >
-                  <span class="text-stone-400 group-hover:text-stone-900 transition-colors" set:html={icon} />
-                  {label}
-                </a>
-              ))
-            }
+        <div class="grid gap-8 sm:grid-cols-2">
+        {about.gear?.length > 0 && (
+          <div>
+            <p class="text-[10px] tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500 mb-4">Gear</p>
+            <ul class="flex flex-col gap-1.5 text-stone-700 dark:text-stone-300 text-sm">
+              {about.gear.map(item => <li>{item}</li>)}
+            </ul>
           </div>
+        )}
+
+        <div>
+          <p class="text-[10px] tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500 mb-4">Find me on</p>
+          <div class="flex flex-col gap-3">
+            {socials.map(({ label, href }) => (
+              <a
+                href={href}
+                target={href.startsWith('mailto') ? undefined : '_blank'}
+                rel="noopener noreferrer"
+                class="flex items-center gap-3 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 transition-colors group text-sm"
+              >
+                <span class="text-stone-400 dark:text-stone-500 group-hover:text-stone-700 dark:group-hover:text-stone-300 transition-colors" set:html={iconMap[label] ?? ''} />
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
         </div>
       </div>
     </div>
-  </main>
-
-  <Footer />
+  </div>
 </Layout>

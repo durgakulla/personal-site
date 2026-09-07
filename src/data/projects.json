@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Habits",
+    "description": "Habit tracker with Google OAuth login.",
+    "href": "https://habits.durgakulla.com/"
+  },
+  {
+    "name": "DateMapper",
+    "description": "Calendar date selection app with local storage.",
+    "href": "https://datemapper.durgakulla.com/"
+  },
+  {
+    "name": "Grid Glide",
+    "description": "An addictive puzzle game inspired by an old board game.",
+    "href": "https://gridglide.durgakulla.com/"
+  }
+]

@@ -1,0 +1,473 @@
+---
+import type { Photo } from '../lib/albums';
+
+interface Props {
+  photos: Photo[];
+}
+
+const { photos } = Astro.props;
+
+// Grid shows 1 column below 1000px, 2 columns above.
+const SIZES = '(min-width: 1000px) 48vw, 100vw';
+
+---
+
+<div class="masonry" id="masonry">
+  {photos.map((photo, i) => (
+    <div
+      class="masonry-item group cursor-pointer overflow-hidden relative"
+      data-lightbox-index={i}
+      data-aspect={photo.aspect}
+      data-exif={photo.exif ?? ''}
+      data-full={photo.src}
+    >
+      <img
+        src={photo.src}
+        srcset={photo.srcset}
+        sizes={photo.srcset ? (photo.aspect === 'panorama' ? '100vw' : SIZES) : undefined}
+        width={photo.width}
+        height={photo.height}
+        alt={photo.alt}
+        class="w-full h-auto block"
+        loading="lazy"
+        decoding="async"
+      />
+      {photo.exif && (
+        <div
+          class="absolute bottom-0 left-0 right-0 px-3 py-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
+          style="background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)"
+        >
+          <p class="text-white text-xs tracking-wide truncate">{photo.exif}</p>
+        </div>
+      )}
+    </div>
+  ))}
+</div>
+
+<!-- Lightbox -->
+<div
+  id="lightbox"
+  class="fixed inset-0 z-50 bg-black/95 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 touch-none overscroll-contain"
+  aria-modal="true"
+  role="dialog"
+>
+  <button
+    id="lb-close"
+    class="absolute top-4 right-5 z-10 text-white/60 hover:text-white transition-colors text-5xl leading-none p-4"
+    aria-label="Close"
+  >&times;</button>
+
+  <button
+    id="lb-prev"
+    class="absolute left-4 md:left-8 z-10 text-white/50 hover:text-white transition-colors p-2"
+    aria-label="Previous photo"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </button>
+
+  <div id="lb-zoom" class="inline-flex will-change-transform">
+    <img id="lb-img" src="" alt="" draggable="false" class="max-w-[95vw] object-contain select-none transition-[max-height] duration-300 cursor-zoom-in" style="max-height:95vh" />
+  </div>
+
+  <button
+    id="lb-next"
+    class="absolute right-4 md:right-8 z-10 text-white/50 hover:text-white transition-colors p-2"
+    aria-label="Next photo"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+
+  <!-- Counter (always visible, no gradient) -->
+  <p id="lb-counter" class="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/50 text-xs tracking-widest"></p>
+
+  <!-- EXIF bar (only shown when EXIF exists) -->
+  <div id="lb-exif-bar" class="hidden absolute bottom-0 left-0 right-0 flex flex-col items-center pb-6 pt-8"
+       style="background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)">
+    <p id="lb-exif" class="text-white text-sm tracking-wide mb-2"></p>
+  </div>
+</div>
+
+<script>
+  // ── Masonry ──────────────────────────────────────────────────────────────────
+  const aspectHeights: Record<string, number> = {
+    landscape: 0.75,
+    portrait:  1.5,
+    square:    1.0,
+  };
+
+  function colCount() {
+    if (window.innerWidth >= 1000) return 2;
+    return 1;
+  }
+
+  function buildMasonry() {
+    const grid = document.getElementById('masonry')!;
+    const items = Array.from(grid.querySelectorAll<HTMLElement>('.masonry-item'))
+      .sort((a, b) => Number(a.dataset.lightboxIndex) - Number(b.dataset.lightboxIndex));
+
+    // Detach items from whatever rows/columns exist, then tear those down.
+    items.forEach(item => grid.appendChild(item));
+    grid.querySelectorAll('.masonry-row').forEach(row => row.remove());
+
+    const n = colCount();
+
+    // Panoramas break out of the column layout and render as full-width rows;
+    // everything else gets balanced into n columns between those breaks.
+    function flushRun(run: HTMLElement[]) {
+      if (!run.length) return;
+      const row = document.createElement('div');
+      row.className = 'masonry-row';
+      const cols: HTMLElement[] = Array.from({ length: n }, () => {
+        const div = document.createElement('div');
+        div.className = 'masonry-col';
+        row.appendChild(div);
+        return div;
+      });
+      const heights = new Array(cols.length).fill(0);
+      run.forEach(item => {
+        const aspect = item.dataset.aspect ?? 'landscape';
+        const shortest = heights.indexOf(Math.min(...heights));
+        cols[shortest].appendChild(item);
+        heights[shortest] += aspectHeights[aspect] ?? 1;
+      });
+      grid.appendChild(row);
+    }
+
+    let run: HTMLElement[] = [];
+    items.forEach(item => {
+      if (item.dataset.aspect === 'panorama') {
+        flushRun(run);
+        run = [];
+        grid.appendChild(item);
+      } else {
+        run.push(item);
+      }
+    });
+    flushRun(run);
+  }
+
+  buildMasonry();
+
+  let resizeTimer: ReturnType<typeof setTimeout>;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildMasonry, 150);
+  });
+
+  // ── Lightbox ─────────────────────────────────────────────────────────────────
+  const lightbox  = document.getElementById('lightbox')!;
+  const lbImg     = document.getElementById('lb-img') as HTMLImageElement;
+  const counter   = document.getElementById('lb-counter')!;
+  const lbExif    = document.getElementById('lb-exif')!;
+  const lbExifBar = document.getElementById('lb-exif-bar')!;
+  const lbZoom    = document.getElementById('lb-zoom')!;
+  const total     = document.querySelectorAll('[data-lightbox-index]').length;
+  let current     = 0;
+  let sourceThumb: HTMLImageElement | null = null;
+  let isDismissing = false;
+  let isAnimating  = false;
+
+  // ── Zoom / pan ───────────────────────────────────────────────────────────────
+  // Slide / FLIP animations live on #lb-zoom; zoom + pan live on #lb-img, so the
+  // two never fight over `transform`.
+  const MAX_ZOOM = 4;
+  let zoom = 1, panX = 0, panY = 0;
+
+  function applyZoom(animate = false) {
+    if (zoom === 1) {
+      lbImg.style.transition = animate ? 'transform 0.2s ease' : '';
+      lbImg.style.transform  = '';
+      lbImg.style.cursor     = 'zoom-in';
+      return;
+    }
+    lbImg.style.transition = animate ? 'transform 0.2s ease' : 'none';
+    lbImg.style.transform  = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    lbImg.style.cursor     = 'grab';
+  }
+  function resetZoom(animate = false) {
+    zoom = 1; panX = 0; panY = 0;
+    applyZoom(animate);
+  }
+  function clampPan() {
+    const r = lbImg.getBoundingClientRect();
+    const maxX = (r.width  / zoom) * (zoom - 1) / 2;
+    const maxY = (r.height / zoom) * (zoom - 1) / 2;
+    panX = Math.min(maxX, Math.max(-maxX, panX));
+    panY = Math.min(maxY, Math.max(-maxY, panY));
+  }
+  // Zoom toward a screen point, keeping that point of the image stationary.
+  function zoomAt(clientX: number, clientY: number, next: number, animate = false) {
+    const r = lbImg.getBoundingClientRect();
+    const dx = clientX - (r.left + r.width / 2);
+    const dy = clientY - (r.top + r.height / 2);
+    const prev = zoom;
+    zoom = Math.min(MAX_ZOOM, Math.max(1, next));
+    panX += dx * (1 - zoom / prev);
+    panY += dy * (1 - zoom / prev);
+    if (zoom === 1) resetZoom(animate);
+    else { clampPan(); applyZoom(animate); }
+  }
+
+  function getTile(index: number) {
+    const idx = ((index % total) + total) % total;
+    return document.querySelector<HTMLElement>(`[data-lightbox-index="${idx}"]`)!;
+  }
+
+  function setExif(tile: HTMLElement) {
+    const exifText = tile.dataset.exif || '';
+    if (exifText) {
+      lbExif.textContent = exifText;
+      lbExifBar.classList.remove('hidden');
+      lbImg.style.maxHeight = '84vh';
+    } else {
+      lbExif.textContent = '';
+      lbExifBar.classList.add('hidden');
+      lbImg.style.maxHeight = '95vh';
+    }
+  }
+
+  function slideToPhoto(index: number, direction: -1 | 1) {
+    if (isAnimating) return;
+    isAnimating = true;
+    resetZoom();
+    const exitX = direction * -110;
+    // Slide current out
+    lbZoom.style.transition = 'transform 0.12s ease-in, opacity 0.12s ease-in';
+    lbZoom.style.transform  = `translateX(${exitX}%)`;
+    lbZoom.style.opacity    = '0';
+    setTimeout(() => {
+      current = ((index % total) + total) % total;
+      const tile     = getTile(current);
+      const thumbImg = tile.querySelector('img')!;
+      sourceThumb = thumbImg;
+      document.body.style.overflow = '';
+      tile.scrollIntoView({ block: 'center', behavior: 'instant' });
+      document.body.style.overflow = 'hidden';
+      lbImg.src = tile.dataset.full || thumbImg.currentSrc || thumbImg.src;
+      lbImg.alt = thumbImg.alt;
+      counter.textContent = `${current + 1} / ${total}`;
+      setExif(tile);
+      // Snap to opposite side, then slide in
+      lbZoom.style.transition = 'none';
+      lbZoom.style.transform  = `translateX(${-exitX}%)`;
+      lbZoom.style.opacity    = '0';
+      requestAnimationFrame(() => {
+        lbZoom.style.transition = 'transform 0.15s ease-out, opacity 0.12s ease-out';
+        lbZoom.style.transform  = '';
+        lbZoom.style.opacity    = '1';
+        setTimeout(() => { isAnimating = false; }, 150);
+      });
+    }, 110);
+  }
+
+  function openLightbox(index: number, fromThumb = false) {
+    current = ((index % total) + total) % total;
+    const tile     = getTile(current);
+    const thumbImg = tile.querySelector('img')!;
+
+    resetZoom();
+    lbImg.src = tile.dataset.full || thumbImg.currentSrc || thumbImg.src;
+    lbImg.alt = thumbImg.alt;
+    counter.textContent = `${current + 1} / ${total}`;
+    setExif(tile);
+
+    const wasHidden = lightbox.classList.contains('opacity-0');
+    lightbox.classList.remove('opacity-0', 'pointer-events-none');
+    document.body.style.overflow = 'hidden';
+
+    if (!fromThumb || !wasHidden) {
+      sourceThumb = thumbImg;
+      document.body.style.overflow = '';
+      tile.scrollIntoView({ block: 'center', behavior: 'instant' });
+      document.body.style.overflow = 'hidden';
+    }
+
+    // FLIP open animation — only on first open from thumbnail click
+    if (fromThumb && wasHidden) {
+      sourceThumb = thumbImg;
+      const thumbRect = thumbImg.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        const lbRect = lbImg.getBoundingClientRect();
+        if (!lbRect.width) return;
+        const scale = thumbRect.width / lbRect.width;
+        const tx = (thumbRect.left + thumbRect.width / 2) - (lbRect.left + lbRect.width / 2);
+        const ty = (thumbRect.top + thumbRect.height / 2) - (lbRect.top + lbRect.height / 2);
+        lbZoom.style.transition = 'none';
+        lbZoom.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        requestAnimationFrame(() => {
+          lbZoom.style.transition = 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          lbZoom.style.transform = '';
+        });
+      });
+    }
+  }
+
+  function closeLightbox() {
+    lightbox.classList.add('opacity-0', 'pointer-events-none');
+    document.body.style.overflow = '';
+    resetZoom();
+  }
+
+  function dismissToSource(scrollDelta = 0) {
+    if (isDismissing || lightbox.classList.contains('pointer-events-none')) return;
+    isDismissing = true;
+    if (!sourceThumb) {
+      closeLightbox();
+      isDismissing = false;
+      if (scrollDelta) window.scrollBy(0, scrollDelta);
+      return;
+    }
+    const thumbRect = sourceThumb.getBoundingClientRect();
+    const lbRect    = lbImg.getBoundingClientRect();
+    const scale = thumbRect.width / lbRect.width;
+    const tx = (thumbRect.left + thumbRect.width / 2) - (lbRect.left + lbRect.width / 2);
+    const ty = (thumbRect.top + thumbRect.height / 2) - (lbRect.top + lbRect.height / 2);
+    lbZoom.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.6, 1)';
+    lbZoom.style.transform  = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    lightbox.classList.add('opacity-0');
+    setTimeout(() => {
+      lightbox.classList.add('pointer-events-none');
+      document.body.style.overflow = '';
+      lbZoom.style.transition = 'none';
+      lbZoom.style.transform  = '';
+      lbZoom.style.opacity    = '1';
+      requestAnimationFrame(() => { lbZoom.style.transition = ''; });
+      resetZoom();
+      isDismissing = false;
+      if (scrollDelta) window.scrollBy(0, scrollDelta);
+    }, 350);
+  }
+
+  // ── Tile clicks ───────────────────────────────────────────────────────────────
+  document.querySelectorAll<HTMLElement>('[data-lightbox-index]').forEach(tile => {
+    tile.addEventListener('click', () => openLightbox(Number(tile.dataset.lightboxIndex), true));
+  });
+
+  // ── Buttons / keyboard ────────────────────────────────────────────────────────
+  document.getElementById('lb-close')!.addEventListener('click', closeLightbox);
+  document.getElementById('lb-prev')!.addEventListener('click', () => slideToPhoto(current - 1, -1));
+  document.getElementById('lb-next')!.addEventListener('click', () => slideToPhoto(current + 1, 1));
+  lightbox.addEventListener('click', e => {
+    if ((e.target as HTMLElement).closest('button') || e.target === lbImg) return;
+    if ((e as MouseEvent).clientX < window.innerWidth / 2) slideToPhoto(current - 1, -1);
+    else slideToPhoto(current + 1, 1);
+  });
+  document.addEventListener('keydown', e => {
+    if (lightbox.classList.contains('pointer-events-none')) return;
+    if (e.key === 'Escape')     closeLightbox();
+    if (e.key === 'ArrowLeft')  slideToPhoto(current - 1, -1);
+    if (e.key === 'ArrowRight') slideToPhoto(current + 1, 1);
+  });
+
+  // ── Wheel: pinch-zoom (ctrlKey), pan while zoomed, else scroll-to-dismiss ──────
+  // macOS trackpad pinch arrives as a wheel event with ctrlKey set.
+  lightbox.addEventListener('wheel', e => {
+    if (lightbox.classList.contains('pointer-events-none')) return;
+    e.preventDefault();
+    if (e.ctrlKey) {
+      zoomAt(e.clientX, e.clientY, zoom * (1 - e.deltaY * 0.01));
+    } else if (zoom > 1) {
+      panX -= e.deltaX;
+      panY -= e.deltaY;
+      clampPan();
+      applyZoom();
+    } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      dismissToSource(e.deltaY);
+    }
+  }, { passive: false });
+
+  // ── Click to toggle zoom ──────────────────────────────────────────────────────
+  lbImg.addEventListener('click', e => {
+    e.preventDefault();
+    if (dragged) return;
+    if (zoom > 1) resetZoom(true);
+    else zoomAt(e.clientX, e.clientY, 2.5, true);
+  });
+
+  // ── Mouse drag to pan while zoomed ──────────────────────────────────────────
+  let dragging = false, dragged = false, dragX = 0, dragY = 0, dragPanX = 0, dragPanY = 0;
+  lbImg.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || zoom <= 1) return;
+    dragging = true;
+    dragged = false;
+    dragX = e.clientX; dragY = e.clientY;
+    dragPanX = panX; dragPanY = panY;
+    lbImg.setPointerCapture(e.pointerId);
+    lbImg.style.cursor = 'grabbing';
+  });
+  lbImg.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    if (Math.abs(e.clientX - dragX) > 3 || Math.abs(e.clientY - dragY) > 3) dragged = true;
+    panX = dragPanX + (e.clientX - dragX);
+    panY = dragPanY + (e.clientY - dragY);
+    clampPan();
+    applyZoom();
+  });
+  lbImg.addEventListener('pointerup', e => {
+    if (!dragging) return;
+    dragging = false;
+    lbImg.releasePointerCapture(e.pointerId);
+    lbImg.style.cursor = 'grab';
+  });
+
+  // ── Touch: pinch-zoom, one-finger pan while zoomed, else swipe nav / dismiss ──
+  let touchStartX = 0, touchStartY = 0;
+  let pinchDist = 0, pinchZoom = 1, pinching = false;
+  let tPanX = 0, tPanY = 0, tPanStartX = 0, tPanStartY = 0;
+
+  const twoFingerDist = (t: TouchList) =>
+    Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  lightbox.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinching  = true;
+      pinchDist = twoFingerDist(e.touches);
+      pinchZoom = zoom;
+    } else {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      tPanStartX  = touchStartX; tPanStartY = touchStartY;
+      tPanX = panX; tPanY = panY;
+    }
+  }, { passive: true });
+
+  lightbox.addEventListener('touchmove', e => {
+    if (lightbox.classList.contains('pointer-events-none')) return;
+    if (pinching && e.touches.length === 2) {
+      e.preventDefault();
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      zoomAt(mx, my, pinchZoom * (twoFingerDist(e.touches) / pinchDist));
+    } else if (zoom > 1 && e.touches.length === 1) {
+      e.preventDefault();
+      panX = tPanX + (e.touches[0].clientX - tPanStartX);
+      panY = tPanY + (e.touches[0].clientY - tPanStartY);
+      clampPan();
+      applyZoom();
+    }
+  }, { passive: false });
+
+  lightbox.addEventListener('touchend', e => {
+    if (lightbox.classList.contains('pointer-events-none')) return;
+    if (pinching) {
+      if (e.touches.length === 0) {
+        pinching = false;
+        if (zoom <= 1.02) resetZoom(true);
+      }
+      return;
+    }
+    if (zoom > 1) return;   // zoomed / panning — no swipe nav or dismiss
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    const dy = touchStartY - e.changedTouches[0].clientY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      if (dx > 0) slideToPhoto(current + 1, 1);
+      else        slideToPhoto(current - 1, -1);
+    } else if (Math.abs(dy) > 60) {
+      dismissToSource(dy);
+    }
+  }, { passive: true });
+</script>

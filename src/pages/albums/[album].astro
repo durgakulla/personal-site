@@ -1,0 +1,70 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PhotoGrid from '../../components/PhotoGrid.astro';
+import { getAlbumSlugs, getPhotosForAlbum, getAlbumInfo, getAlbumCover } from '../../lib/albums';
+import about from '../../data/about.json';
+
+export function getStaticPaths() {
+  return getAlbumSlugs().map(slug => ({ params: { album: slug } }));
+}
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const { album } = Astro.params;
+const photos = await getPhotosForAlbum(album);
+const { name, description, descriptionParagraphs, month, year } = getAlbumInfo(album);
+const dateParts = [month ? MONTHS[month - 1] : null, year ?? null].filter(Boolean);
+const date = dateParts.length ? dateParts.join(' ') : null;
+const cover = getAlbumCover(album);
+
+const albumUrl = new URL(`/albums/${album}`, Astro.site);
+const imageGalleryJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ImageGallery',
+  name,
+  ...(description ? { description } : {}),
+  url: albumUrl,
+  image: photos.map(photo => ({
+    '@type': 'ImageObject',
+    contentUrl: new URL(photo.src, Astro.site),
+    width: photo.width,
+    height: photo.height,
+  })),
+};
+---
+
+<Layout
+  title={`${name} — ${about.name}`}
+  description={description ?? `${name} — photos by ${about.name}`}
+  ogImage={cover?.src}
+  activeAlbum={album}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(imageGalleryJsonLd)} />
+  <div class="px-6 md:px-8 pt-6 md:pt-10 pb-10">
+    <div class="mb-4">
+      <!-- Mobile: breadcrumb + date on new line -->
+      <div class="md:hidden mb-2">
+        <h1 class="font-extrabold text-2xl tracking-tight leading-snug">
+          <a href="/" class="text-stone-300 dark:text-stone-600 hover:text-stone-500 dark:hover:text-stone-400 transition-colors">Albums</a>
+          <span class="text-stone-300 dark:text-stone-600 mx-2">›</span>
+          <span class="text-stone-900 dark:text-stone-100">{name}</span>
+        </h1>
+        {date && <p class="text-sm font-medium text-stone-400 dark:text-stone-500 mt-1">{date}</p>}
+      </div>
+      <!-- Desktop: title · date inline -->
+      <h1 class="hidden md:flex items-baseline gap-3 font-extrabold text-4xl tracking-tight leading-snug mb-2">
+        <span class="text-stone-900 dark:text-stone-100">{name}</span>
+        {date && <>
+          <span class="text-2xl font-light text-stone-300 dark:text-stone-600">·</span>
+          <span class="text-2xl font-medium text-stone-400 dark:text-stone-500">{date}</span>
+        </>}
+      </h1>
+      {descriptionParagraphs && (
+        <div class="mt-2 space-y-2 text-base text-stone-600 dark:text-stone-400 max-w-md leading-relaxed">
+          {descriptionParagraphs.map(p => <p>{p}</p>)}
+        </div>
+      )}
+    </div>
+    <PhotoGrid photos={photos} />
+  </div>
+</Layout>

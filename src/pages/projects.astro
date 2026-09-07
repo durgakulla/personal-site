@@ -1,91 +1,46 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Nav from '../components/Nav.astro';
-import Footer from '../components/Footer.astro';
-
-/**
- * Add your projects here.
- * Each project can link to a subdomain (e.g. https://app.durgakulla.com)
- * or any external URL.
- */
-const projects = [
-  {
-    name: 'Project One',
-    description: 'A short description of what this project is and what it does.',
-    href: 'https://project-one.durgakulla.com',
-    year: '2025',
-    tags: ['Web', 'Design'],
-  },
-  {
-    name: 'Project Two',
-    description: 'Another project you have been working on.',
-    href: 'https://project-two.durgakulla.com',
-    year: '2024',
-    tags: ['iOS', 'Swift'],
-  },
-  {
-    name: 'Project Three',
-    description: 'A third project, tool, or experiment worth sharing.',
-    href: 'https://github.com/YOUR_HANDLE/project-three',
-    year: '2024',
-    tags: ['Open Source'],
-  },
-];
+import projects from '../data/projects.json';
+import about from '../data/about.json';
 ---
 
-<Layout title="Projects — Durga Kullakanda">
-  <Nav />
-
-  <main class="flex-1 px-6 md:px-8 pb-16 max-w-3xl mx-auto w-full">
-    <div class="text-center mb-14">
-      <p class="text-xs tracking-[0.3em] uppercase text-stone-400">Projects</p>
-    </div>
-
-    <ul class="divide-y divide-stone-100">
-      {
-        projects.map(({ name, description, href, year, tags }) => (
-          <li>
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="group flex items-start justify-between gap-6 py-8 hover:opacity-70 transition-opacity"
-            >
-              <div class="flex-1 min-w-0">
-                <div class="flex items-baseline gap-3 mb-2 flex-wrap">
-                  <h2 class="font-serif text-lg text-stone-900">{name}</h2>
-                  <div class="flex gap-2 flex-wrap">
-                    {tags.map((tag) => (
-                      <span class="text-[10px] tracking-widest uppercase text-stone-400 border border-stone-200 px-2 py-0.5 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <p class="text-sm text-stone-500 leading-relaxed">{description}</p>
+<Layout title={`Projects — ${about.name}`} activePage="projects">
+  <div class="px-6 md:px-12 pt-8 md:pt-16 pb-10 max-w-2xl">
+    <h1 class="hidden md:block font-bold text-3xl tracking-tight text-stone-900 dark:text-stone-100 mb-2">Projects</h1>
+    <ol class="divide-y divide-stone-100 dark:divide-stone-800">
+      {projects.map(({ name, description, href }, i) => (
+        <li>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group flex items-start justify-between gap-6 py-7 hover:opacity-70 transition-opacity"
+          >
+            <div class="flex items-start gap-4 flex-1 min-w-0">
+              <span class="text-stone-300 dark:text-stone-600 text-sm font-medium tabular-nums pt-1">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <h2 class="font-semibold text-xl tracking-tight text-stone-900 dark:text-stone-100 mb-2">{name}</h2>
+                <p class="text-base text-stone-600 dark:text-stone-300 leading-relaxed">{description}</p>
               </div>
-              <div class="flex-shrink-0 flex items-center gap-3">
-                <span class="text-xs text-stone-400">{year}</span>
-                <svg
-                  class="w-4 h-4 text-stone-300 group-hover:text-stone-600 transition-colors translate-x-0 group-hover:translate-x-1 transition-transform"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <line x1="7" y1="17" x2="17" y2="7" />
-                  <polyline points="7 7 17 7 17 17" />
-                </svg>
-              </div>
-            </a>
-          </li>
-        ))
-      }
-    </ul>
-  </main>
-
-  <Footer />
+            </div>
+            <div class="flex-shrink-0 flex items-center mt-0.5">
+              <svg
+                class="w-4 h-4 text-stone-200 dark:text-stone-700 group-hover:text-stone-500 dark:group-hover:text-stone-300 transition-colors group-hover:translate-x-0.5 transition-transform"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="7" y1="17" x2="17" y2="7"/>
+                <polyline points="7 7 17 7 17 17"/>
+              </svg>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </div>
 </Layout>

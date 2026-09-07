@@ -20,5 +20,12 @@ pnpm-debug.log*
 # macOS-specific files
 .DS_Store
 
+# original full-res photos (optimized versions are committed instead)
+public/images/albums/*/originals/
+
+# responsive derivatives — regenerated from the display images by
+# scripts/optimize-images.mjs on every build
+public/images/albums/*/resized/
+
 # jetbrains setting folder
 .idea/
