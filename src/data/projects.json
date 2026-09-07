@@ -1,8 +1,13 @@
 [
   {
-    "name": "Habits",
-    "description": "Habit tracker with Google OAuth login.",
-    "href": "https://habits.durgakulla.com/"
+    "name": "Personal Photography Website",
+    "description": "This website you're on right now, forkable if you want to make it your own!",
+    "href": "https://github.com/durgakulla/personal-site"
+  },
+  {
+    "name": "Grid Glide",
+    "description": "An addictive puzzle game inspired by an old board game.",
+    "href": "https://gridglide.durgakulla.com/"
   },
   {
     "name": "DateMapper",
@@ -10,8 +15,8 @@
     "href": "https://datemapper.durgakulla.com/"
   },
   {
-    "name": "Grid Glide",
-    "description": "An addictive puzzle game inspired by an old board game.",
-    "href": "https://gridglide.durgakulla.com/"
+    "name": "Habits",
+    "description": "Habit tracker with Google OAuth login.",
+    "href": "https://habits.durgakulla.com/"
   }
 ]

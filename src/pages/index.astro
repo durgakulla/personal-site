@@ -5,6 +5,9 @@ import about from '../data/about.json';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// Album index uses a forced, evenly-cropped grid (unlike the true masonry on
+// album pages) — with only a handful of albums, uneven heights from varying
+// cover aspect ratios look like gaps rather than intentional variety.
 // Grid shows 1 column below 1000px, 2 columns above.
 const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
@@ -22,44 +25,32 @@ const albums = getAlbumSlugs().map(slug => {
         {about.tagline}
       </p>
     )}
-    <div id="scroll-cue" class="flex items-center gap-2 mb-8 md:mb-10 transition-opacity duration-300 ease-out">
-      <span class="text-[10px] tracking-[0.2em] uppercase text-stone-600 dark:text-stone-300">Scroll to browse</span>
-      <svg class="w-3.5 h-3.5 text-stone-600 dark:text-stone-300 animate-bounce" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
-    </div>
-    <div class="masonry" id="masonry">
-      {albums.map((album, i) => (
+    <div class="index-grid">
+      {albums.map(album => (
         <a
           href={`/albums/${album.slug}`}
-          class="masonry-item group block overflow-hidden"
-          data-aspect={album.cover?.aspect ?? 'landscape'}
-          data-lightbox-index={i}
+          class="index-grid-item group block overflow-hidden relative aspect-[4/3]"
         >
-          <div class="relative overflow-hidden">
-            {album.cover && (
-              <img
-                src={album.cover.src}
-                srcset={album.cover.srcset}
-                sizes={album.cover.srcset ? (album.cover.aspect === 'panorama' ? '100vw' : SIZES) : undefined}
-                width={album.cover.width}
-                height={album.cover.height}
-                alt={album.cover.alt}
-                class="w-full h-auto block transition-transform duration-500 ease-out group-hover:scale-105"
-                loading="lazy"
-                decoding="async"
-              />
-            )}
-            <div class="absolute inset-0 bg-black/35 group-hover:bg-black/50 transition-colors duration-300 flex flex-col items-center justify-center text-center px-4">
-              <p class="text-white font-extrabold uppercase tracking-tight leading-[0.88] text-balance break-words max-w-full text-[11vw] md:text-[5vw] lg:text-[4vw]">
-                {album.name}
+          {album.cover && (
+            <img
+              src={album.cover.src}
+              srcset={album.cover.srcset}
+              sizes={SIZES}
+              alt={album.cover.alt}
+              class="w-full h-full object-cover block transition-transform duration-500 ease-out group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+            />
+          )}
+          <div class="absolute inset-0 bg-black/35 group-hover:bg-black/50 transition-colors duration-300 flex flex-col items-center justify-center text-center px-4">
+            <p class="text-white font-extrabold uppercase tracking-tight leading-[0.88] text-balance break-words max-w-full text-[8vw] md:text-[3.5vw] lg:text-[2.8vw]">
+              {album.name}
+            </p>
+            {album.date && (
+              <p class="text-white/80 font-semibold text-sm md:text-base tracking-[0.3em] uppercase mt-3 md:mt-4">
+                {album.date}
               </p>
-              {album.date && (
-                <p class="text-white/80 font-semibold text-sm md:text-base tracking-[0.3em] uppercase mt-3 md:mt-4">
-                  {album.date}
-                </p>
-              )}
-            </div>
+            )}
           </div>
         </a>
       ))}
@@ -67,71 +58,15 @@ const albums = getAlbumSlugs().map(slug => {
   </div>
 </Layout>
 
-<script>
-  const aspectHeights: Record<string, number> = { landscape: 0.75, portrait: 1.5, square: 1.0 };
-
-  function colCount() {
-    if (window.innerWidth >= 1000) return 2;
-    return 1;
+<style>
+  .index-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
-
-  function buildMasonry() {
-    const grid = document.getElementById('masonry')!;
-    const items = Array.from(grid.querySelectorAll<HTMLElement>('.masonry-item'))
-      .sort((a, b) => Number(a.dataset.lightboxIndex) - Number(b.dataset.lightboxIndex));
-
-    // Detach items from whatever rows/columns exist, then tear those down.
-    items.forEach(item => grid.appendChild(item));
-    grid.querySelectorAll('.masonry-row').forEach(row => row.remove());
-
-    const n = colCount();
-
-    // Panoramas break out of the column layout and render as full-width rows;
-    // everything else gets balanced into n columns between those breaks.
-    function flushRun(run: HTMLElement[]) {
-      if (!run.length) return;
-      const row = document.createElement('div');
-      row.className = 'masonry-row';
-      const cols: HTMLElement[] = Array.from({ length: Math.min(n, run.length) }, () => {
-        const div = document.createElement('div');
-        div.className = 'masonry-col';
-        row.appendChild(div);
-        return div;
-      });
-      const heights = new Array(cols.length).fill(0);
-      run.forEach(item => {
-        const aspect = item.dataset.aspect ?? 'landscape';
-        const shortest = heights.indexOf(Math.min(...heights));
-        cols[shortest].appendChild(item);
-        heights[shortest] += aspectHeights[aspect] ?? 1;
-      });
-      grid.appendChild(row);
+  @media (min-width: 1000px) {
+    .index-grid {
+      grid-template-columns: repeat(2, 1fr);
     }
-
-    let run: HTMLElement[] = [];
-    items.forEach(item => {
-      if (item.dataset.aspect === 'panorama') {
-        flushRun(run);
-        run = [];
-        grid.appendChild(item);
-      } else {
-        run.push(item);
-      }
-    });
-    flushRun(run);
   }
-
-  buildMasonry();
-  let t: ReturnType<typeof setTimeout>;
-  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(buildMasonry, 150); });
-
-  // ── Scroll cue: fade out once the visitor actually starts scrolling ────────────
-  const scrollCue = document.getElementById('scroll-cue');
-  if (scrollCue) {
-    const updateScrollCue = () => {
-      scrollCue.style.opacity = window.scrollY > 24 ? '0' : '1';
-    };
-    updateScrollCue();
-    window.addEventListener('scroll', updateScrollCue, { passive: true });
-  }
-</script>
+</style>

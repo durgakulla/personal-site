@@ -79,12 +79,16 @@ const HTML = `<!DOCTYPE html>
   #sidebar { width: 256px; flex-shrink: 0; background: #fff; border-right: 1px solid #f5f5f4; overflow-y: auto; display: flex; flex-direction: column; padding: 40px 0 20px; }
   body.dark #sidebar { background: #0c0a09; border-right-color: #1c1917; }
   #sidebar-header { padding: 0 24px; margin-bottom: 40px; display: flex; flex-direction: column; align-items: center; }
-  #site-name { font-size: 24px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.375; text-transform: uppercase; color: #a8a29e; text-align: center; margin-bottom: 6px; }
+  .site-logo { display: inline-block; cursor: pointer; transition: opacity 0.15s; text-align: center; }
+  .site-logo:hover { opacity: 0.8; }
+  #site-name { font-size: 24px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.375; text-transform: uppercase; color: #1c1917; }
   #site-name:empty { display: none; }
-  body.dark #site-name { color: #78716c; }
-  .sidebar-header-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
-  #sidebar-header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; text-align: center; cursor: pointer; transition: opacity 0.15s; }
-  #sidebar-header h1:hover { opacity: 0.7; }
+  body.dark #site-name { color: #e7e5e4; }
+  .site-logo-strip { display: flex; height: 5px; margin: 6px 0 8px; }
+  #site-name:empty ~ .site-logo-strip { display: none; }
+  .site-logo-strip span { flex: 1; }
+  #sidebar-header h1 { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a8a29e; }
+  body.dark #sidebar-header h1 { color: #78716c; }
   #sidebar-footer { margin-top: auto; padding: 20px 24px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   #view-site-link { display: flex; align-items: center; gap: 6px; color: #a8a29e; font-size: 12px; text-decoration: none; transition: color 0.15s; }
   #view-site-link:hover { color: #1c1917; }
@@ -132,23 +136,23 @@ const HTML = `<!DOCTYPE html>
   /* ── Form fields ── */
   .field { margin-bottom: 18px; }
   .field label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #78716c; margin-bottom: 6px; }
-  .field input, .field textarea, .field select, input.bare, textarea.bare {
+  .field input, .field textarea, .field select, input.bare, textarea.bare, select.bare {
     width: 100%; padding: 8px 11px; border: 1px solid #d6d3d1; border-radius: 6px;
     font-size: 14px; font-family: inherit; color: #1c1917; background: #fff; outline: none; transition: border-color 0.15s;
   }
-  .field select {
+  .field select, select.bare {
     appearance: none; -webkit-appearance: none;
     padding-right: 30px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 10px center; cursor: pointer;
   }
-  body.dark .field select {
+  body.dark .field select, body.dark select.bare {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   }
   body.dark .field input, body.dark .field textarea, body.dark .field select,
-  body.dark input.bare, body.dark textarea.bare { background: #292524; border-color: #44403c; color: #e7e5e4; }
-  .field input:focus, .field textarea:focus, .field select:focus, input.bare:focus, textarea.bare:focus { border-color: #292524; box-shadow: 0 0 0 3px rgba(28,25,23,0.07); }
-  body.dark .field input:focus, body.dark .field textarea:focus, body.dark input.bare:focus, body.dark textarea.bare:focus { border-color: #a8a29e; box-shadow: 0 0 0 3px rgba(168,162,158,0.1); }
+  body.dark input.bare, body.dark textarea.bare, body.dark select.bare { background: #292524; border-color: #44403c; color: #e7e5e4; }
+  .field input:focus, .field textarea:focus, .field select:focus, input.bare:focus, textarea.bare:focus, select.bare:focus { border-color: #292524; box-shadow: 0 0 0 3px rgba(28,25,23,0.07); }
+  body.dark .field input:focus, body.dark .field textarea:focus, body.dark input.bare:focus, body.dark textarea.bare:focus, body.dark select.bare:focus { border-color: #a8a29e; box-shadow: 0 0 0 3px rgba(168,162,158,0.1); }
   .field textarea, textarea.bare { resize: vertical; line-height: 1.6; }
   .field-row { display: flex; gap: 12px; }
   .field-row .field { flex: 1; }
@@ -161,7 +165,6 @@ const HTML = `<!DOCTYPE html>
   .empty-prompt { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 60px 20px; border: 2px dashed #d6d3d1; border-radius: 10px; color: #a8a29e; }
   body.dark .empty-prompt { border-color: #44403c; }
   .empty-prompt.visible { display: flex; }
-  #home-empty-prompt { display: flex; }
   .empty-prompt .empty-prompt-icon { font-size: 28px; color: #d6d3d1; margin-bottom: 10px; line-height: 1; }
   body.dark .empty-prompt .empty-prompt-icon { color: #44403c; }
   .empty-prompt p { font-size: 14px; max-width: 320px; }
@@ -181,6 +184,15 @@ const HTML = `<!DOCTYPE html>
   .strip-delete { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); color: #fff; font-size: 13px; line-height: 1; border-radius: 50%; cursor: pointer; opacity: 0; transition: opacity 0.15s, background 0.15s; z-index: 2; }
   .strip-item:hover .strip-delete { opacity: 1; }
   .strip-delete:hover { background: #dc2626; }
+  #album-sort-strip { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 8px; }
+
+  /* ── Homepage preview (mirrors index.astro's forced-even grid + title-overlay tiles) ── */
+  #home-masonry-preview { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .home-preview-item { position: relative; aspect-ratio: 4 / 3; border-radius: 4px; overflow: hidden; }
+  .home-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .home-preview-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 12px; }
+  .home-preview-title { color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.9; font-size: clamp(14px, 4vw, 26px); word-break: break-word; }
+  .home-preview-date { color: rgba(255,255,255,0.8); font-weight: 600; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 8px; }
   /* ── Masonry preview ── */
   .preview-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #78716c; margin-bottom: 8px; margin-top: 24px; }
   #masonry-preview { display: flex; flex-direction: column; gap: 8px; }
@@ -211,8 +223,6 @@ const HTML = `<!DOCTYPE html>
   .list-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; border: 1px solid #e7e5e4; border-radius: 8px; padding: 12px; background: #fff; transition: border-color 0.15s, opacity 0.15s; }
   body.dark .list-item { background: #1c1917; border-color: #292524; }
   .list-item.dragging { opacity: 0.4; }
-  .list-item.drag-over { border-color: #1c1917; box-shadow: 0 0 0 2px #1c1917; }
-  body.dark .list-item.drag-over { border-color: #e7e5e4; box-shadow: 0 0 0 2px #e7e5e4; }
   .drag-handle { flex-shrink: 0; cursor: grab; color: #d6d3d1; font-size: 16px; line-height: 1; padding-top: 7px; user-select: none; }
   body.dark .drag-handle { color: #44403c; }
   .drag-handle:active { cursor: grabbing; }
@@ -245,14 +255,22 @@ const HTML = `<!DOCTYPE html>
 
 <div id="sidebar">
   <div id="sidebar-header">
-    <div id="site-name"></div>
-    <div class="sidebar-header-row">
-      <h1 id="site-title-link" role="button" tabindex="0">Site Admin</h1>
+    <div id="site-title-link" role="button" tabindex="0" class="site-logo">
+      <div id="site-name"></div>
+      <div class="site-logo-strip">
+        <span style="background:#c2542f"></span>
+        <span style="background:#d9a441"></span>
+        <span style="background:#2f6f6a"></span>
+        <span style="background:#7a8b4f"></span>
+        <span style="background:#a8433a"></span>
+        <span style="background:#c9a066"></span>
+      </div>
+      <h1>Site Admin</h1>
     </div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Pages</div>
-    <div class="nav-item" data-page="home">Home</div>
+    <div class="nav-item" data-page="home">Home/Album Index</div>
     <div class="nav-item" data-page="about">About</div>
     <div class="nav-item" data-page="projects">Projects</div>
   </div>
@@ -279,7 +297,7 @@ const HTML = `<!DOCTYPE html>
   <!-- ── Home editor ── -->
   <div id="home-editor" class="editor">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:4px;">
-      <div class="editor-title" style="margin-bottom:0;">Home</div>
+      <div class="editor-title" style="margin-bottom:0;">Home/Album Index</div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
         <span class="save-status" id="home-save-status-top">Saved!</span>
         <button class="save-btn home-save-trigger">Save</button>
@@ -297,7 +315,14 @@ const HTML = `<!DOCTYPE html>
     <hr>
     <div id="home-empty-prompt" class="empty-prompt">
       <div class="empty-prompt-icon">←</div>
-      <p>Click an album or page in the menu on the left to start editing.</p>
+      <p>Create an album from the sidebar to start building your homepage.</p>
+    </div>
+    <div id="home-albums-section">
+      <div class="section-label">Album Order</div>
+      <div class="section-hint">Drag to reorder (Controls homepage &amp; menu order) &nbsp;·&nbsp; Double click to edit album</div>
+      <div id="album-sort-strip"></div>
+      <div class="preview-label">Homepage Preview</div>
+      <div id="home-masonry-preview"></div>
     </div>
     <div class="save-row">
       <button class="save-btn home-save-trigger">Save</button>
@@ -383,6 +408,11 @@ const HTML = `<!DOCTYPE html>
     <div class="section-hint">Drag to reorder</div>
     <div id="gear-list"></div>
     <button class="add-btn" id="add-gear">+ Add Gear</button>
+    <hr>
+    <div class="section-label">Socials</div>
+    <div class="section-hint">Drag to reorder</div>
+    <div id="socials-list"></div>
+    <button class="add-btn" id="add-social">+ Add Social</button>
     <div class="save-row">
       <button class="save-btn about-save-trigger">Save</button>
       <span class="save-status" id="about-save-status">Saved!</span>
@@ -415,12 +445,21 @@ const HTML = `<!DOCTYPE html>
 </div>
 
 <script>
-let albums = [], currentAlbum = null, currentView = null, dragSrc = null, aboutData = {};
+let albums = [], currentAlbum = null, currentView = null, dragSrc = null, aboutData = {}, socialsData = [];
 function photoUrl(slug, f) { return '/albums/' + slug + '/display/' + f; }
 // Smallest responsive derivative — used for thumbnails so we don't pull the
 // full-size display image just to render a tiny preview. Falls back to the
 // full image (via onerror) when no derivative exists for a file.
 function thumbUrl(slug, f, width) { return '/albums/' + slug + '/resized/' + f.replace(/\.[^.]+$/, '') + '-' + width + 'w.webp'; }
+// Mirrors toDisplayName() in src/lib/albums.ts — the fallback the live site
+// uses when an album has no explicit name in info.json.
+function albumDisplayName(a) {
+  if (a.info.name) return a.info.name;
+  return a.slug
+    .replace(/^\\d+[-_]/, '')
+    .replace(/[-_]/g, ' ')
+    .replace(/\\b\\w/g, c => c.toUpperCase());
+}
 const aspectCache = {};
 
 // ── Boot ───────────────────────────────────────────────────────────────────
@@ -502,7 +541,7 @@ function renderSidebar() {
     const rr = row.getBoundingClientRect();
     const before = e.clientY < rr.top + rr.height / 2;
     list.insertBefore(dragSrc, before ? row : row.nextSibling);
-    saveAlbumOrderFromDOM();
+    saveAlbumOrder([...list.querySelectorAll('[data-slug]')].map(el => el.dataset.slug));
   }, { signal: sig });
 
   const pageHandlers = { home: selectHome, about: selectAbout, projects: selectProjects };
@@ -512,8 +551,7 @@ function renderSidebar() {
   });
 }
 
-async function saveAlbumOrderFromDOM() {
-  const slugs = [...document.querySelectorAll('#album-list [data-slug]')].map(el => el.dataset.slug);
+async function saveAlbumOrder(slugs) {
   albums.sort((a, b) => slugs.indexOf(a.slug) - slugs.indexOf(b.slug));
   await fetch('/api/album-order', {
     method: 'POST',
@@ -521,6 +559,11 @@ async function saveAlbumOrderFromDOM() {
     body: JSON.stringify({ order: slugs }),
   });
   renderSidebar();
+  if (currentView === 'home') {
+    updateHomeEmptyState();
+    renderAlbumSortStrip();
+    renderHomeMasonryPreview();
+  }
 }
 
 function showEditor(id) {
@@ -549,6 +592,9 @@ function flashSaved(id) {
 
 // ── Generic drag-and-drop for .list-item lists ─────────────────────────────
 function bindDrag(el, container, onChange) {
+  container._onReorder = onChange;
+  ensureDragContainer(container);
+
   el.addEventListener('dragstart', e => {
     dragSrc = el;
     setTimeout(() => el.classList.add('dragging'), 0);
@@ -556,24 +602,51 @@ function bindDrag(el, container, onChange) {
   });
   el.addEventListener('dragend', () => {
     el.classList.remove('dragging');
-    container.querySelectorAll('.drag-over').forEach(t => t.classList.remove('drag-over'));
+    if (container._dropLine) container._dropLine.style.display = 'none';
     dragSrc = null;
   });
-  el.addEventListener('dragover', e => {
+}
+
+// Sets up a shared horizontal drop-line indicator on the container (bound
+// once), matching the interaction used for reordering albums in the sidebar —
+// shows exactly where the dragged item will land, instead of highlighting
+// whichever item it would swap with.
+function ensureDragContainer(container) {
+  if (container._dragReady) return;
+  container._dragReady = true;
+  container.style.position = 'relative';
+
+  const dropLine = document.createElement('div');
+  dropLine.className = 'drop-line-h';
+  dropLine.style.display = 'none';
+  container.appendChild(dropLine);
+  container._dropLine = dropLine;
+
+  container.addEventListener('dragover', e => {
+    const item = e.target.closest('.list-item');
+    if (!item || item === dragSrc || item.parentElement !== container) return;
     e.preventDefault();
-    if (el !== dragSrc) {
-      container.querySelectorAll('.drag-over').forEach(t => t.classList.remove('drag-over'));
-      el.classList.add('drag-over');
-    }
+    const cr = container.getBoundingClientRect();
+    const ir = item.getBoundingClientRect();
+    const before = e.clientY < ir.top + ir.height / 2;
+    dropLine.style.top = ((before ? ir.top : ir.bottom) - cr.top - 1) + 'px';
+    dropLine.style.display = '';
   });
-  el.addEventListener('drop', e => {
+
+  container.addEventListener('dragleave', e => {
+    if (!container.contains(e.relatedTarget)) dropLine.style.display = 'none';
+  });
+
+  container.addEventListener('drop', e => {
     e.preventDefault();
-    if (!dragSrc || dragSrc === el) return;
-    const items = [...container.children];
-    const from = items.indexOf(dragSrc), to = items.indexOf(el);
-    container.insertBefore(dragSrc, from < to ? el.nextSibling : el);
-    container.querySelectorAll('.drag-over').forEach(t => t.classList.remove('drag-over'));
-    onChange?.();
+    dropLine.style.display = 'none';
+    if (!dragSrc) return;
+    const item = e.target.closest('.list-item');
+    if (!item || item === dragSrc || item.parentElement !== container) return;
+    const ir = item.getBoundingClientRect();
+    const before = e.clientY < ir.top + ir.height / 2;
+    container.insertBefore(dragSrc, before ? item : item.nextSibling);
+    container._onReorder?.();
   });
 }
 
@@ -582,6 +655,7 @@ async function selectAlbum(slug) {
   await flushAutosave();
   await homeAutosave.flush();
   await aboutAutosave.flush();
+  await socialsAutosave.flush();
   await projectsAutosave.flush();
   currentAlbum = albums.find(a => a.slug === slug);
   currentView  = null;
@@ -999,6 +1073,7 @@ function createGearItem(text) {
 async function selectHome() {
   await flushAutosave();
   await aboutAutosave.flush();
+  await socialsAutosave.flush();
   await projectsAutosave.flush();
   currentAlbum = null;
   currentView  = 'home';
@@ -1008,6 +1083,150 @@ async function selectHome() {
   document.getElementById('home-tagline').value = aboutData.tagline ?? '';
   document.getElementById('home-save-status').classList.remove('show');
   document.getElementById('home-save-status-top').classList.remove('show');
+  updateHomeEmptyState();
+  renderAlbumSortStrip();
+  renderHomeMasonryPreview();
+}
+
+function updateHomeEmptyState() {
+  const empty = albums.length === 0;
+  document.getElementById('home-empty-prompt').classList.toggle('visible', empty);
+  document.getElementById('home-albums-section').style.display = empty ? 'none' : '';
+}
+
+// Grid of every album's cover, draggable to reorder — same interaction as the
+// photo order strip (drop-line shows exactly where the album will land).
+function renderAlbumSortStrip() {
+  if (window._albumStripCtrl) window._albumStripCtrl.abort();
+  window._albumStripCtrl = new AbortController();
+  const sig = window._albumStripCtrl.signal;
+
+  const strip = document.getElementById('album-sort-strip');
+  strip.innerHTML = '';
+
+  const dropLine = document.createElement('div');
+  dropLine.className = 'drop-line-v';
+  dropLine.style.display = 'none';
+
+  albums.forEach((a, i) => {
+    const item = document.createElement('div');
+    item.className = 'strip-item';
+    item.draggable = true;
+    item.dataset.slug = a.slug;
+
+    const cover = a.photos.length ? effectiveCover(a.info, a.photos) : null;
+    const img = document.createElement('img');
+    if (cover) {
+      img.src = thumbUrl(a.slug, cover, 480);
+      img.onerror = () => { img.onerror = null; img.src = photoUrl(a.slug, cover); };
+    }
+    item.appendChild(img);
+
+    const num = document.createElement('span');
+    num.className = 'strip-num';
+    num.textContent = i + 1;
+    item.appendChild(num);
+
+    const badge = document.createElement('span');
+    badge.className = 'cover-badge';
+    badge.textContent = albumDisplayName(a);
+    item.appendChild(badge);
+
+    item.addEventListener('dblclick', () => { if (!dragSrc) selectAlbum(a.slug); });
+
+    item.addEventListener('dragstart', e => {
+      dragSrc = item;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      dropLine.style.display = 'none';
+      dragSrc = null;
+    });
+
+    strip.appendChild(item);
+  });
+
+  strip.appendChild(dropLine);
+
+  strip.addEventListener('dragover', e => {
+    e.preventDefault();
+    const item = e.target.closest('.strip-item');
+    if (!item || item === dragSrc) return;
+    const sr = strip.getBoundingClientRect();
+    const ir = item.getBoundingClientRect();
+    const before = e.clientX < ir.left + ir.width / 2;
+    dropLine.style.left   = ((before ? ir.left : ir.right) - sr.left - 1.5) + 'px';
+    dropLine.style.top    = (ir.top - sr.top) + 'px';
+    dropLine.style.height = ir.height + 'px';
+    dropLine.style.display = '';
+  }, { signal: sig });
+
+  strip.addEventListener('dragleave', e => {
+    if (!strip.contains(e.relatedTarget)) dropLine.style.display = 'none';
+  }, { signal: sig });
+
+  strip.addEventListener('drop', e => {
+    e.preventDefault();
+    dropLine.style.display = 'none';
+    if (!dragSrc) return;
+    const item = e.target.closest('.strip-item');
+    if (!item || item === dragSrc) return;
+    const ir = item.getBoundingClientRect();
+    const before = e.clientX < ir.left + ir.width / 2;
+    strip.insertBefore(dragSrc, before ? item : item.nextSibling);
+    strip.querySelectorAll('.strip-item').forEach((el, i) => {
+      const n = el.querySelector('.strip-num');
+      if (n) n.textContent = i + 1;
+    });
+    saveAlbumOrder([...strip.querySelectorAll('.strip-item')].map(el => el.dataset.slug));
+  }, { signal: sig });
+}
+
+// Mirrors src/pages/index.astro's masonry grid — same layout algorithm and
+// the same title-overlay treatment on each tile — so this doubles as an
+// accurate homepage preview.
+// Mirrors index.astro's forced, evenly-cropped grid (not the true masonry used
+// on album pages) — with just a handful of albums, uneven cover aspect ratios
+// read as gaps rather than intentional variety, so every tile is the same
+// fixed 4:3 box with the cover image cropped to fit via object-fit: cover.
+function renderHomeMasonryPreview() {
+  const eligible = albums.filter(a => a.photos.length > 0);
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const container = document.getElementById('home-masonry-preview');
+  container.innerHTML = '';
+
+  eligible.forEach(a => {
+    const cover = effectiveCover(a.info, a.photos);
+    const item = document.createElement('div');
+    item.className = 'home-preview-item';
+
+    const img = document.createElement('img');
+    img.src = thumbUrl(a.slug, cover, 960);
+    img.onerror = () => { img.onerror = null; img.src = photoUrl(a.slug, cover); };
+    item.appendChild(img);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'home-preview-overlay';
+
+    const title = document.createElement('p');
+    title.className = 'home-preview-title';
+    title.textContent = albumDisplayName(a);
+    overlay.appendChild(title);
+
+    const dateParts = [a.info.month ? MONTHS[a.info.month - 1] : null, a.info.year ?? null].filter(Boolean);
+    if (dateParts.length) {
+      const date = document.createElement('p');
+      date.className = 'home-preview-date';
+      date.textContent = dateParts.join(' · ');
+      overlay.appendChild(date);
+    }
+
+    item.appendChild(overlay);
+    container.appendChild(item);
+  });
 }
 
 async function saveHomeData() {
@@ -1052,6 +1271,10 @@ async function selectAbout() {
   const gearList = document.getElementById('gear-list');
   gearList.innerHTML = '';
   (aboutData.gear ?? []).forEach(g => gearList.appendChild(createGearItem(g)));
+  socialsData = await fetch('/api/socials').then(r => r.json()).catch(() => []);
+  const socialsList = document.getElementById('socials-list');
+  socialsList.innerHTML = '';
+  socialsData.forEach(s => socialsList.appendChild(createSocialItem(s)));
   document.getElementById('about-save-status').classList.remove('show');
   document.getElementById('about-save-status-top').classList.remove('show');
 }
@@ -1084,9 +1307,81 @@ document.getElementById('about-heading').addEventListener('input', () => aboutAu
 
 document.querySelectorAll('.about-save-trigger').forEach(btn => btn.addEventListener('click', async () => {
   await saveAboutData();
+  await saveSocialsData();
   flashSaved('about-save-status');
   flashSaved('about-save-status-top');
 }));
+
+// ── Socials editor ────────────────────────────────────────────────────────
+// These labels get a real matching icon on the live site (see socialIcons in
+// src/layouts/Layout.astro) — anything else still works, it just falls back
+// to a generic link icon there, so any platform/website can be added.
+const SOCIAL_LABELS = ['Instagram', 'LinkedIn', 'GitHub', 'Email', 'Twitter/X', 'YouTube', 'Facebook', 'Bluesky', 'Behance', '500px', 'Flickr', 'Vimeo'];
+
+if (!document.getElementById('social-label-options')) {
+  const datalist = document.createElement('datalist');
+  datalist.id = 'social-label-options';
+  SOCIAL_LABELS.forEach(label => {
+    const opt = document.createElement('option');
+    opt.value = label;
+    datalist.appendChild(opt);
+  });
+  document.body.appendChild(datalist);
+}
+
+function createSocialItem(social) {
+  const div = document.createElement('div');
+  div.className = 'list-item';
+  div.draggable = true;
+
+  const handle = document.createElement('div');
+  handle.className = 'drag-handle';
+  handle.textContent = '⠿';
+
+  const fields = document.createElement('div');
+  fields.className = 'item-fields';
+
+  const labelInput = document.createElement('input');
+  labelInput.className = 'bare social-label';
+  labelInput.setAttribute('list', 'social-label-options');
+  labelInput.placeholder = 'Instagram, YouTube, My Blog...';
+  labelInput.value = social?.label || '';
+
+  const hrefInput = document.createElement('input');
+  hrefInput.className = 'bare social-href';
+  hrefInput.placeholder = 'https://... or mailto:you@example.com';
+  hrefInput.value = social?.href || '';
+
+  [labelInput, hrefInput].forEach(el =>
+    el.addEventListener('input', () => socialsAutosave.trigger())
+  );
+
+  fields.append(labelInput, hrefInput);
+
+  const btn = document.createElement('button');
+  btn.className = 'remove-btn';
+  btn.textContent = '×';
+  btn.addEventListener('click', () => { div.remove(); socialsAutosave.trigger(); });
+
+  div.append(handle, fields, btn);
+  bindDrag(div, document.getElementById('socials-list'), () => socialsAutosave.trigger());
+  return div;
+}
+
+document.getElementById('add-social').addEventListener('click', () => {
+  document.getElementById('socials-list').appendChild(createSocialItem(null));
+  socialsAutosave.trigger();
+});
+
+async function saveSocialsData() {
+  socialsData = [...document.getElementById('socials-list').querySelectorAll('.list-item')].map(card => ({
+    label: card.querySelector('.social-label').value.trim(),
+    href:  card.querySelector('.social-href').value.trim(),
+  })).filter(s => s.label && s.href);
+  await fetch('/api/socials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(socialsData) });
+}
+
+const socialsAutosave = makeAutosave(saveSocialsData, ['about-save-status', 'about-save-status-top']);
 
 // ── Projects editor ────────────────────────────────────────────────────────
 function createProjectCard(proj) {
@@ -1136,6 +1431,7 @@ async function selectProjects() {
   await flushAutosave();
   await homeAutosave.flush();
   await aboutAutosave.flush();
+  await socialsAutosave.flush();
   currentAlbum = null;
   currentView  = 'projects';
   renderSidebar();
@@ -1483,6 +1779,9 @@ createServer((req, res) => {
 
   if (path === '/api/projects' && req.method === 'GET')  return jsonGet(res, readJSON('projects.json'));
   if (path === '/api/projects' && req.method === 'POST') return jsonPost(req, res, d => writeJSON('projects.json', d));
+
+  if (path === '/api/socials' && req.method === 'GET')  return jsonGet(res, readJSON('socials.json'));
+  if (path === '/api/socials' && req.method === 'POST') return jsonPost(req, res, d => writeJSON('socials.json', d));
 
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(HTML);

@@ -13,11 +13,13 @@
   }
 }
 
-/* Fluid side margins: 0px at 900px viewport, 100px at 1600px+ */
+/* Body is capped at max-w-[1400px] and centered (see Layout.astro), so this is
+   just breathing room from the viewport edge below that width, not a scaling
+   margin. */
 @media (min-width: 768px) {
   body {
-    padding-left: clamp(32px, calc((100vw - 768px) * 0.1 + 32px), 120px);
-    padding-right: clamp(0px, calc((100vw - 1000px) * 0.143), 100px);
+    padding-left: 32px;
+    padding-right: 32px;
   }
 }
 

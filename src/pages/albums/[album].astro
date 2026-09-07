@@ -14,7 +14,7 @@ const { album } = Astro.params;
 const photos = await getPhotosForAlbum(album);
 const { name, description, descriptionParagraphs, month, year } = getAlbumInfo(album);
 const dateParts = [month ? MONTHS[month - 1] : null, year ?? null].filter(Boolean);
-const date = dateParts.length ? dateParts.join(' ') : null;
+const date = dateParts.length ? dateParts.join(' · ') : null;
 const cover = getAlbumCover(album);
 
 const albumUrl = new URL(`/albums/${album}`, Astro.site);
@@ -51,13 +51,10 @@ const imageGalleryJsonLd = {
         </h1>
         {date && <p class="text-sm font-medium text-stone-400 dark:text-stone-500 mt-1">{date}</p>}
       </div>
-      <!-- Desktop: title · date inline -->
+      <!-- Desktop: title date inline -->
       <h1 class="hidden md:flex items-baseline gap-3 font-extrabold text-4xl tracking-tight leading-snug mb-2">
         <span class="text-stone-900 dark:text-stone-100">{name}</span>
-        {date && <>
-          <span class="text-2xl font-light text-stone-300 dark:text-stone-600">·</span>
-          <span class="text-2xl font-medium text-stone-400 dark:text-stone-500">{date}</span>
-        </>}
+        {date && <span class="text-2xl font-medium text-stone-400 dark:text-stone-500">{date}</span>}
       </h1>
       {descriptionParagraphs && (
         <div class="mt-2 space-y-2 text-base text-stone-600 dark:text-stone-400 max-w-md leading-relaxed">

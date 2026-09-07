@@ -1,6 +1,18 @@
 [
-  { "label": "Instagram", "href": "https://www.instagram.com/durgalicious_" },
-  { "label": "LinkedIn",  "href": "https://www.linkedin.com/in/durgakullakanda" },
-  { "label": "GitHub",    "href": "https://github.com/durgakulla" },
-  { "label": "Email",     "href": "mailto:durga.kulla@gmail.com" }
+  {
+    "label": "Instagram",
+    "href": "https://www.instagram.com/durgalicious_"
+  },
+  {
+    "label": "LinkedIn",
+    "href": "https://www.linkedin.com/in/durgakullakanda"
+  },
+  {
+    "label": "GitHub",
+    "href": "https://github.com/durgakulla"
+  },
+  {
+    "label": "Email",
+    "href": "mailto:durga.kulla@gmail.com"
+  }
 ]

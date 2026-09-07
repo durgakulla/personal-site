@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { getAlbumsMeta } from '../lib/albums';
+import { socialIcons } from '../lib/socialIcons';
 import socials from '../data/socials.json';
 import about from '../data/about.json';
 
@@ -25,17 +26,15 @@ const ogImageURL   = new URL(ogImage, Astro.site);
 
 const albums = getAlbumsMeta();
 
-const socialIcons: Record<string, string> = {
-  Instagram: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>`,
-  LinkedIn:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>`,
-  GitHub:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`,
-  Email:     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
-};
-
 function isActive(href: string) {
   if (href === '/') return Astro.url.pathname === '/' || Astro.url.pathname.startsWith('/albums');
   return Astro.url.pathname === href || Astro.url.pathname.startsWith(href + '/');
 }
+
+const logoColors = ['#c2542f', '#d9a441', '#2f6f6a', '#7a8b4f', '#a8433a', '#c9a066'];
+
+const [logoFirstLine, ...logoRestWords] = about.name.split(' ');
+const logoSecondLine = logoRestWords.join(' ');
 
 ---
 
@@ -86,17 +85,27 @@ function isActive(href: string) {
       if (localStorage.getItem('theme') !== 'light') document.documentElement.classList.add('dark');
     </script>
   </head>
-  <body class="flex bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100">
+  <body class="flex max-w-[1300px] mx-auto bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100">
 
     <!-- ── Desktop sidebar ── -->
-    <aside class="hidden md:flex sticky top-0 self-start h-screen shrink-0 w-56 lg:w-64 xl:w-72 2xl:w-80 flex-col items-center px-8 py-10 overflow-y-auto z-40 bg-white dark:bg-stone-950">
-      <a href="/" class="font-extrabold text-4xl tracking-tight leading-snug uppercase text-stone-900 dark:text-stone-100 hover:opacity-70 transition-opacity mb-10 block text-center">
-        {about.name}
+    <aside class="hidden md:flex sticky top-0 self-start h-screen shrink-0 w-48 lg:w-56 xl:w-64 2xl:w-72 flex-col items-start px-8 py-10 overflow-y-auto z-40 bg-white dark:bg-stone-950">
+      <a href="/" aria-label={about.name} class="hover:opacity-80 transition-opacity mb-10 inline-block text-center self-center">
+        <span class="font-extrabold text-3xl tracking-tight leading-none uppercase text-stone-900 dark:text-stone-100 block">
+          {logoFirstLine}{logoSecondLine && <><br/>{logoSecondLine}</>}
+        </span>
+        <div class="flex h-1.5 mt-1.5">
+          {logoColors.map(c => <span class="flex-1" style={`background:${c}`}></span>)}
+        </div>
       </a>
 
-      <div class="mb-3 flex flex-col items-center text-center">
-        <a href="/" class={`font-bold text-base tracking-widest uppercase py-0.5 transition-colors block mb-6 ${isActive('/') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'}`}>Albums</a>
-        <nav class="flex flex-col items-center gap-2">
+      <div class="flex flex-col items-start gap-6 mb-10">
+        <a href="/about"    class={`font-bold text-base tracking-widest uppercase transition-colors ${isActive('/about')    ? 'text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'}`}>About</a>
+        <a href="/projects" class={`font-bold text-base tracking-widest uppercase transition-colors ${isActive('/projects') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'}`}>Projects</a>
+      </div>
+
+      <div class="flex flex-col items-start text-left">
+        <a href="/" class={`font-bold text-base tracking-widest uppercase transition-colors block mb-4 ${isActive('/') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'}`}>Albums</a>
+        <nav class="flex flex-col items-start gap-2">
           {albums.map(({ slug, name }) => (
             <a
               href={`/albums/${slug}`}
@@ -108,21 +117,7 @@ function isActive(href: string) {
         </nav>
       </div>
 
-      <div class="w-6 h-px bg-stone-100 dark:bg-stone-800 my-3"></div>
-
-      <div class="flex flex-col items-center gap-0.5">
-        <a href="/projects" class={`font-bold text-base tracking-widest uppercase py-0.5 transition-colors ${isActive('/projects') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'}`}>Projects</a>
-        <a href="/about"    class={`font-bold text-base tracking-widest uppercase py-0.5 transition-colors ${isActive('/about')    ? 'text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'}`}>About</a>
-      </div>
-
-      <!-- Social icons -->
-      <div class="flex items-center gap-4 mt-6">
-        {socials.map(({ label, href }) => socialIcons[label] && (
-          <a href={href} target={href.startsWith('mailto') ? undefined : '_blank'} rel="noopener noreferrer" aria-label={label} class="text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors [&>svg]:w-4 [&>svg]:h-4" set:html={socialIcons[label]} />
-        ))}
-      </div>
-
-      <div class="mt-auto pt-10 flex flex-col items-center gap-4">
+      <div class="mt-auto pt-10 flex flex-col items-start gap-4">
         <!-- Theme toggle -->
         <button id="theme-toggle-desktop" aria-label="Toggle theme" class="flex items-center gap-2 text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors text-xs">
           <!-- Moon: visible in light mode -->
@@ -145,6 +140,13 @@ function isActive(href: string) {
           Admin
         </a>
 
+        <!-- Social icons -->
+        <div class="flex flex-wrap gap-x-4 gap-y-3 max-w-full">
+          {socials.map(({ label, href }) => (
+            <a href={href} target={href.startsWith('mailto') ? undefined : '_blank'} rel="noopener noreferrer" aria-label={label} class="text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors [&>svg]:w-4 [&>svg]:h-4" set:html={socialIcons[label] ?? socialIcons.Misc} />
+          ))}
+        </div>
+
         <p class="text-[10px] text-stone-300 dark:text-stone-700">
           &copy; {new Date().getFullYear()} {about.name}
         </p>
@@ -155,7 +157,12 @@ function isActive(href: string) {
     <div class="flex-1 min-h-screen flex flex-col">
       <!-- Mobile header bar -->
       <div class="md:hidden flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-stone-800">
-        <a href="/" class="font-extrabold text-2xl tracking-tight uppercase text-stone-900 dark:text-stone-100">{about.name}</a>
+        <a href="/" aria-label={about.name} class="inline-block">
+          <span class="font-extrabold text-xl tracking-tight uppercase text-stone-900 dark:text-stone-100 block">{about.name}</span>
+          <div class="flex h-1 mt-1">
+            {logoColors.map(c => <span class="flex-1" style={`background:${c}`}></span>)}
+          </div>
+        </a>
         <button id="theme-toggle-header" aria-label="Toggle theme" class="text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors">
           <svg class="block dark:hidden w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           <svg class="hidden dark:block w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -166,6 +173,8 @@ function isActive(href: string) {
         {!activeAlbum && (
           <div class="md:hidden">
             <nav class="flex items-center justify-center gap-8 px-6 pt-6 pb-2 font-extrabold text-2xl tracking-tight">
+              <a href="/about" class={isActive('/about') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-300 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 transition-colors'}>About</a>
+              <a href="/projects" class={isActive('/projects') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-300 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 transition-colors'}>Projects</a>
               {isActive('/') ? (
                 <button id="albums-toggle" class="text-stone-900 dark:text-stone-100 flex items-center gap-1">
                   Albums
@@ -174,8 +183,6 @@ function isActive(href: string) {
               ) : (
                 <a href="/" class="text-stone-300 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 transition-colors">Albums</a>
               )}
-              <a href="/projects" class={isActive('/projects') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-300 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 transition-colors'}>Projects</a>
-              <a href="/about" class={isActive('/about') ? 'text-stone-900 dark:text-stone-100' : 'text-stone-300 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 transition-colors'}>About</a>
             </nav>
             <div id="albums-dropdown" class="hidden flex-col items-center gap-2 pb-4 pt-2">
               {albums.map(({ slug, name }) => (
