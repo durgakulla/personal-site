@@ -1,5 +1,5 @@
 {
-  "name": "photoblog",
+  "name": "personal-site",
   "description": "Forkable personal-website starter — photography albums, projects, and about, built with Astro + Tailwind",
   "type": "module",
   "version": "0.0.1",

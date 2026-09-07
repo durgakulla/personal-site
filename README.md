@@ -35,7 +35,7 @@ Requires Node 22.12+.
 
 ```bash
 git clone <your-fork-url>
-cd photoblog
+cd personal-site
 npm install
 npm run dev        # → http://localhost:4321
 ```
