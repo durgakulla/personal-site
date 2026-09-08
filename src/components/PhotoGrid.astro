@@ -181,10 +181,21 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
   buildMasonry();
 
+  // Mobile browsers fire `resize` while scrolling (the address bar collapsing
+  // and expanding changes viewport height), which would otherwise re-trigger
+  // a full rebuild — detaching and reparenting every tile — mid-scroll and
+  // flash the photo just scrolled past. Only rebuild when the column count
+  // implied by the width actually changes.
   let resizeTimer: ReturnType<typeof setTimeout>;
+  let lastColCount = colCount();
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(buildMasonry, 150);
+    resizeTimer = setTimeout(() => {
+      const n = colCount();
+      if (n === lastColCount) return;
+      lastColCount = n;
+      buildMasonry();
+    }, 150);
   });
 
   // ── Lightbox ─────────────────────────────────────────────────────────────────
