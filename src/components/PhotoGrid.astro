@@ -365,9 +365,30 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     track.style.transform  = `translateX(${targetPx}px)`;
     setTimeout(() => {
       current = ((current + direction) % total + total) % total;
-      updateSlots();
-      snapTrackToCenter();
-      isAnimating = false;
+      const fullSrc = getTile(current).dataset.full;
+      // The already-visible thumbnail panel is left exactly as it is until the
+      // full-res image has actually decoded — swapping lb-img's src and
+      // snapping the track in the same tick let the browser keep painting the
+      // *previous* photo's bitmap in lb-img for a frame while the new one
+      // decoded, flashing it right as the slide settled.
+      const finish = () => {
+        updateSlots();
+        snapTrackToCenter();
+        isAnimating = false;
+      };
+      if (fullSrc) {
+        let done = false;
+        const finishOnce = () => { if (done) return; done = true; finish(); };
+        const preload = new Image();
+        preload.onload = finishOnce;
+        preload.onerror = finishOnce;
+        preload.src = fullSrc;
+        // decode() can hang indefinitely on some WebKit versions — never let a
+        // swipe get stuck waiting on it.
+        setTimeout(finishOnce, 1200);
+      } else {
+        finish();
+      }
     }, 220);
   }
 
