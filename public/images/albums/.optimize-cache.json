@@ -1,10 +1,4 @@
 {
-  "Hawaiʻi/A7V01977.JPG": {
-    "mtime": 1788062712100
-  },
-  "Hawaiʻi/A7V01979.JPG": {
-    "mtime": 1788062761090
-  },
   "Hawaiʻi/halekalacraterlong.jpg": {
     "mtime": 1788161220172.3467
   },
@@ -35,12 +29,6 @@
   "san-francisco/Screenshot 2026-09-04 at 12.27.48 AM.png": {
     "mtime": 1788736761965.4595
   },
-  "resized/Hawaiʻi/A7V01977.JPG": {
-    "mtime": 1788770224392.662
-  },
-  "resized/Hawaiʻi/A7V01979.JPG": {
-    "mtime": 1788770224648.3987
-  },
   "resized/Hawaiʻi/halekalacraterlong.jpg": {
     "mtime": 1788770225125.8955
   },
@@ -70,5 +58,23 @@
   },
   "resized/san-francisco/Screenshot 2026-09-04 at 12.27.48 AM.png": {
     "mtime": 1788770230126.8396
+  },
+  "Hawaiʻi/nene.jpg": {
+    "mtime": 1788836221209.0308
+  },
+  "resized/Hawaiʻi/nene.jpg": {
+    "mtime": 1788836221705.646
+  },
+  "Hawaiʻi/gecko.jpg": {
+    "mtime": 1788836383887.0903
+  },
+  "resized/Hawaiʻi/gecko.jpg": {
+    "mtime": 1788836384407.0652
+  },
+  "Hawaiʻi/muscovyduck.jpg": {
+    "mtime": 1788836656143.5586
+  },
+  "resized/Hawaiʻi/muscovyduck.jpg": {
+    "mtime": 1788836656732.185
   }
 }
