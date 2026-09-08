@@ -245,9 +245,13 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     applyZoom(animate);
   }
   function clampPan() {
-    const r = lbImg.getBoundingClientRect();
-    const maxX = (r.width  / zoom) * (zoom - 1) / 2;
-    const maxY = (r.height / zoom) * (zoom - 1) / 2;
+    // offsetWidth/offsetHeight are the element's unscaled layout box — unlike
+    // getBoundingClientRect(), they're unaffected by the transform: scale()
+    // already applied from the previous frame, so there's no stale-scale
+    // mismatch to compensate for (that mismatch was worst right as a pinch
+    // pushed past MAX_ZOOM, causing a visible reposition at full zoom).
+    const maxX = (lbImg.offsetWidth  * (zoom - 1)) / 2;
+    const maxY = (lbImg.offsetHeight * (zoom - 1)) / 2;
     panX = Math.min(maxX, Math.max(-maxX, panX));
     panY = Math.min(maxY, Math.max(-maxY, panY));
   }
