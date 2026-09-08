@@ -20,6 +20,8 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
       data-aspect={photo.aspect}
       data-exif={photo.exif ?? ''}
       data-full={photo.src}
+      data-width={photo.width}
+      data-height={photo.height}
     >
       <img
         src={photo.src}
@@ -47,7 +49,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 <!-- Lightbox -->
 <div
   id="lightbox"
-  class="fixed inset-0 z-50 bg-black/95 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 touch-none overscroll-contain"
+  class="fixed inset-0 z-50 bg-black/95 opacity-0 pointer-events-none transition-opacity duration-300 touch-none overscroll-contain overflow-hidden"
   aria-modal="true"
   role="dialog"
 >
@@ -59,7 +61,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
   <button
     id="lb-prev"
-    class="absolute left-4 md:left-8 z-10 text-white/50 hover:text-white transition-colors p-2"
+    class="hidden md:block absolute md:left-8 top-1/2 -translate-y-1/2 z-10 text-white/50 hover:text-white transition-colors p-2"
     aria-label="Previous photo"
   >
     <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -67,13 +69,29 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     </svg>
   </button>
 
-  <div id="lb-zoom" class="inline-flex will-change-transform">
-    <img id="lb-img" src="" alt="" draggable="false" class="max-w-[95vw] object-contain select-none transition-[max-height] duration-300 cursor-zoom-in" style="max-height:95vh" />
+  <!-- 3-panel carousel track: prev / current / next, each exactly one
+       viewport wide. Sliding the track (not the image) is what makes the
+       neighboring photo visibly peek in during a drag. Only the current
+       panel's image supports zoom/pan and gets the full-res source — the
+       prev/next panels just reuse whatever's already cached from their grid
+       thumbnail, so peeking at a neighbor costs no extra network request. -->
+  <div id="lb-track" class="flex h-full w-[300%] will-change-transform">
+    <div class="lb-slot w-1/3 h-full flex items-center justify-center shrink-0">
+      <img id="lb-img-prev" src="" alt="" draggable="false" class="w-auto h-auto max-w-[95vw] object-contain select-none" style="max-height:95vh" />
+    </div>
+    <div class="lb-slot w-1/3 h-full flex items-center justify-center shrink-0">
+      <div id="lb-zoom" class="inline-flex will-change-transform">
+        <img id="lb-img" src="" alt="" draggable="false" class="w-auto h-auto max-w-[95vw] object-contain select-none transition-[max-height] duration-300 cursor-zoom-in" style="max-height:95vh" />
+      </div>
+    </div>
+    <div class="lb-slot w-1/3 h-full flex items-center justify-center shrink-0">
+      <img id="lb-img-next" src="" alt="" draggable="false" class="w-auto h-auto max-w-[95vw] object-contain select-none" style="max-height:95vh" />
+    </div>
   </div>
 
   <button
     id="lb-next"
-    class="absolute right-4 md:right-8 z-10 text-white/50 hover:text-white transition-colors p-2"
+    class="hidden md:block absolute md:right-8 top-1/2 -translate-y-1/2 z-10 text-white/50 hover:text-white transition-colors p-2"
     aria-label="Next photo"
   >
     <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -82,12 +100,12 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   </button>
 
   <!-- Counter (always visible, no gradient) -->
-  <p id="lb-counter" class="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/50 text-xs tracking-widest"></p>
+  <p id="lb-counter" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white/50 text-xs tracking-widest"></p>
 
   <!-- EXIF bar (only shown when EXIF exists) -->
-  <div id="lb-exif-bar" class="hidden absolute bottom-0 left-0 right-0 flex flex-col items-center pb-6 pt-8"
+  <div id="lb-exif-bar" class="hidden absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center pb-6 pt-8"
        style="background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)">
-    <p id="lb-exif" class="text-white text-sm tracking-wide mb-2"></p>
+    <p id="lb-exif" class="text-white/70 text-sm tracking-wide mb-2"></p>
   </div>
 </div>
 
@@ -159,21 +177,33 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   });
 
   // ── Lightbox ─────────────────────────────────────────────────────────────────
-  const lightbox  = document.getElementById('lightbox')!;
-  const lbImg     = document.getElementById('lb-img') as HTMLImageElement;
-  const counter   = document.getElementById('lb-counter')!;
-  const lbExif    = document.getElementById('lb-exif')!;
-  const lbExifBar = document.getElementById('lb-exif-bar')!;
-  const lbZoom    = document.getElementById('lb-zoom')!;
-  const total     = document.querySelectorAll('[data-lightbox-index]').length;
-  let current     = 0;
+  const lightbox   = document.getElementById('lightbox')!;
+  const track      = document.getElementById('lb-track')!;
+  const lbImg      = document.getElementById('lb-img') as HTMLImageElement;
+  const lbImgPrev  = document.getElementById('lb-img-prev') as HTMLImageElement;
+  const lbImgNext  = document.getElementById('lb-img-next') as HTMLImageElement;
+  const counter    = document.getElementById('lb-counter')!;
+  const lbExif     = document.getElementById('lb-exif')!;
+  const lbExifBar  = document.getElementById('lb-exif-bar')!;
+  const lbZoom     = document.getElementById('lb-zoom')!;
+  const total      = document.querySelectorAll('[data-lightbox-index]').length;
+  let current      = 0;
   let sourceThumb: HTMLImageElement | null = null;
   let isDismissing = false;
   let isAnimating  = false;
 
+  // Track position, in px, with the current (middle) panel centered.
+  function trackBaseX() {
+    return -lightbox.clientWidth;
+  }
+  function snapTrackToCenter() {
+    track.style.transition = 'none';
+    track.style.transform  = `translateX(${trackBaseX()}px)`;
+  }
+
   // ── Zoom / pan ───────────────────────────────────────────────────────────────
-  // Slide / FLIP animations live on #lb-zoom; zoom + pan live on #lb-img, so the
-  // two never fight over `transform`.
+  // Carousel sliding lives on #lb-track; zoom + pan live on #lb-img (inside the
+  // current panel only), so the two never fight over `transform`.
   const MAX_ZOOM = 4;
   let zoom = 1, panX = 0, panY = 0;
 
@@ -230,66 +260,111 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     }
   }
 
-  function slideToPhoto(index: number, direction: -1 | 1) {
+  // Points the prev/current/next panels at whatever `current` is now. The
+  // prev/next panels reuse the grid thumbnail's already-loaded image (cheap —
+  // no new request), while the current panel gets the full-res image.
+  function updateSlots() {
+    const curTile  = getTile(current);
+    const prevTile = getTile(current - 1);
+    const nextTile = getTile(current + 1);
+
+    const curThumb  = curTile.querySelector('img') as HTMLImageElement;
+    const prevThumb = prevTile.querySelector('img') as HTMLImageElement;
+    const nextThumb = nextTile.querySelector('img') as HTMLImageElement;
+
+    // Explicit width/height lock each panel's box to the photo's real aspect
+    // ratio, independent of whichever resource (thumb vs. full-res) happens to
+    // be loaded — otherwise a plain `src` swap has no srcset/sizes context, so
+    // the browser sizes it from that resource's raw pixel dimensions and the
+    // box visibly jumps when the higher-res image takes over.
+    lbImg.src = curTile.dataset.full || curThumb.currentSrc || curThumb.src;
+    lbImg.alt = curThumb.alt;
+    lbImg.width = Number(curTile.dataset.width) || 0;
+    lbImg.height = Number(curTile.dataset.height) || 0;
+
+    lbImgPrev.src = prevThumb.currentSrc || prevThumb.src;
+    lbImgPrev.alt = prevThumb.alt;
+    lbImgPrev.width = Number(prevTile.dataset.width) || 0;
+    lbImgPrev.height = Number(prevTile.dataset.height) || 0;
+    lbImgNext.src = nextThumb.currentSrc || nextThumb.src;
+    lbImgNext.alt = nextThumb.alt;
+    lbImgNext.width = Number(nextTile.dataset.width) || 0;
+    lbImgNext.height = Number(nextTile.dataset.height) || 0;
+
+    sourceThumb = curThumb;
+    counter.textContent = `${current + 1} / ${total}`;
+    setExif(curTile);
+
+    document.body.style.overflow = '';
+    curTile.scrollIntoView({ block: 'center', behavior: 'instant' });
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Simple crossfade for keyboard/button/click navigation — waits for the
+  // full-res image to finish loading before fading it in, so there's never a
+  // low-res-then-swap size jump to begin with (unlike the slide/peek path,
+  // this doesn't show anything until the real image is ready).
+  function fadeToPhoto(direction: -1 | 1) {
     if (isAnimating) return;
     isAnimating = true;
     resetZoom();
-    const exitX = direction * -110;
-    // Slide current out
-    lbZoom.style.transition = 'transform 0.12s ease-in, opacity 0.12s ease-in';
-    lbZoom.style.transform  = `translateX(${exitX}%)`;
-    lbZoom.style.opacity    = '0';
+    lbImg.style.transition = 'opacity 0.15s ease';
+    lbImg.style.opacity = '0';
     setTimeout(() => {
-      current = ((index % total) + total) % total;
-      const tile     = getTile(current);
-      const thumbImg = tile.querySelector('img')!;
-      sourceThumb = thumbImg;
-      document.body.style.overflow = '';
-      tile.scrollIntoView({ block: 'center', behavior: 'instant' });
-      document.body.style.overflow = 'hidden';
-      lbImg.src = tile.dataset.full || thumbImg.currentSrc || thumbImg.src;
-      lbImg.alt = thumbImg.alt;
-      counter.textContent = `${current + 1} / ${total}`;
-      setExif(tile);
-      // Snap to opposite side, then slide in
-      lbZoom.style.transition = 'none';
-      lbZoom.style.transform  = `translateX(${-exitX}%)`;
-      lbZoom.style.opacity    = '0';
-      requestAnimationFrame(() => {
-        lbZoom.style.transition = 'transform 0.15s ease-out, opacity 0.12s ease-out';
-        lbZoom.style.transform  = '';
-        lbZoom.style.opacity    = '1';
-        setTimeout(() => { isAnimating = false; }, 150);
-      });
-    }, 110);
+      current = ((current + direction) % total + total) % total;
+      const fullSrc = getTile(current).dataset.full;
+      const reveal = () => {
+        updateSlots();
+        lbImg.style.opacity = '1';
+        isAnimating = false;
+      };
+      if (fullSrc) {
+        const preload = new Image();
+        preload.onload = reveal;
+        preload.onerror = reveal;
+        preload.src = fullSrc;
+      } else {
+        reveal();
+      }
+    }, 150);
+  }
+
+  // Slides the track to fully reveal the neighboring panel, then swaps
+  // `current` and recenters instantly — continues smoothly from wherever a
+  // live drag left the track, since the browser interpolates the transform.
+  // Used only for a released touch swipe (see touchend below); every other
+  // navigation path uses the simpler fadeToPhoto instead.
+  function commitSlide(direction: -1 | 1) {
+    if (isAnimating) return;
+    isAnimating = true;
+    resetZoom();
+    const targetPx = trackBaseX() - direction * lightbox.clientWidth;
+    track.style.transition = 'transform 0.22s ease-out';
+    track.style.transform  = `translateX(${targetPx}px)`;
+    setTimeout(() => {
+      current = ((current + direction) % total + total) % total;
+      updateSlots();
+      snapTrackToCenter();
+      isAnimating = false;
+    }, 220);
   }
 
   function openLightbox(index: number, fromThumb = false) {
     current = ((index % total) + total) % total;
-    const tile     = getTile(current);
-    const thumbImg = tile.querySelector('img')!;
-
     resetZoom();
-    lbImg.src = tile.dataset.full || thumbImg.currentSrc || thumbImg.src;
-    lbImg.alt = thumbImg.alt;
-    counter.textContent = `${current + 1} / ${total}`;
-    setExif(tile);
+    isAnimating = false;
+    lbImg.style.transition = '';
+    lbImg.style.opacity = '1';
+    updateSlots();
+    snapTrackToCenter();
 
     const wasHidden = lightbox.classList.contains('opacity-0');
     lightbox.classList.remove('opacity-0', 'pointer-events-none');
     document.body.style.overflow = 'hidden';
 
-    if (!fromThumb || !wasHidden) {
-      sourceThumb = thumbImg;
-      document.body.style.overflow = '';
-      tile.scrollIntoView({ block: 'center', behavior: 'instant' });
-      document.body.style.overflow = 'hidden';
-    }
-
     // FLIP open animation — only on first open from thumbnail click
-    if (fromThumb && wasHidden) {
-      sourceThumb = thumbImg;
-      const thumbRect = thumbImg.getBoundingClientRect();
+    if (fromThumb && wasHidden && sourceThumb) {
+      const thumbRect = sourceThumb.getBoundingClientRect();
       requestAnimationFrame(() => {
         const lbRect = lbImg.getBoundingClientRect();
         if (!lbRect.width) return;
@@ -349,18 +424,23 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
   // ── Buttons / keyboard ────────────────────────────────────────────────────────
   document.getElementById('lb-close')!.addEventListener('click', closeLightbox);
-  document.getElementById('lb-prev')!.addEventListener('click', () => slideToPhoto(current - 1, -1));
-  document.getElementById('lb-next')!.addEventListener('click', () => slideToPhoto(current + 1, 1));
+  document.getElementById('lb-prev')!.addEventListener('click', () => fadeToPhoto(-1));
+  document.getElementById('lb-next')!.addEventListener('click', () => fadeToPhoto(1));
   lightbox.addEventListener('click', e => {
     if ((e.target as HTMLElement).closest('button') || e.target === lbImg) return;
-    if ((e as MouseEvent).clientX < window.innerWidth / 2) slideToPhoto(current - 1, -1);
-    else slideToPhoto(current + 1, 1);
+    if ((e as MouseEvent).clientX < window.innerWidth / 2) fadeToPhoto(-1);
+    else fadeToPhoto(1);
   });
   document.addEventListener('keydown', e => {
     if (lightbox.classList.contains('pointer-events-none')) return;
     if (e.key === 'Escape')     closeLightbox();
-    if (e.key === 'ArrowLeft')  slideToPhoto(current - 1, -1);
-    if (e.key === 'ArrowRight') slideToPhoto(current + 1, 1);
+    if (e.key === 'ArrowLeft')  fadeToPhoto(-1);
+    if (e.key === 'ArrowRight') fadeToPhoto(1);
+  });
+
+  // Keep the track centered on resize (it's positioned in px, not %).
+  window.addEventListener('resize', () => {
+    if (!lightbox.classList.contains('pointer-events-none') && !isAnimating) snapTrackToCenter();
   });
 
   // ── Wheel: pinch-zoom (ctrlKey), pan while zoomed, else scroll-to-dismiss ──────
@@ -414,7 +494,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     lbImg.style.cursor = 'grab';
   });
 
-  // ── Touch: pinch-zoom, one-finger pan while zoomed, else swipe nav / dismiss ──
+  // ── Touch: pinch-zoom, one-finger pan while zoomed, else carousel drag / dismiss ──
   let touchStartX = 0, touchStartY = 0;
   let pinchDist = 0, pinchZoom = 1, pinching = false;
   let tPanX = 0, tPanY = 0, tPanStartX = 0, tPanStartY = 0;
@@ -448,6 +528,15 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
       panY = tPanY + (e.touches[0].clientY - tPanStartY);
       clampPan();
       applyZoom();
+    } else if (zoom <= 1 && e.touches.length === 1) {
+      // Live drag-follow: slide the whole carousel track with the finger so
+      // the neighboring photo visibly peeks in, instead of static-until-release.
+      const fingerDX = e.touches[0].clientX - touchStartX;
+      const fingerDY = e.touches[0].clientY - touchStartY;
+      if (Math.abs(fingerDX) > Math.abs(fingerDY)) {
+        track.style.transition = 'none';
+        track.style.transform  = `translateX(${trackBaseX() + fingerDX}px)`;
+      }
     }
   }, { passive: false });
 
@@ -464,10 +553,14 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     const dx = touchStartX - e.changedTouches[0].clientX;
     const dy = touchStartY - e.changedTouches[0].clientY;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-      if (dx > 0) slideToPhoto(current + 1, 1);
-      else        slideToPhoto(current - 1, -1);
+      commitSlide(dx > 0 ? 1 : -1);
     } else if (Math.abs(dy) > 60) {
       dismissToSource(dy);
+    } else {
+      // Didn't clear the threshold — snap back to center instead of leaving
+      // the photo stuck wherever the finger let go.
+      track.style.transition = 'transform 0.2s ease';
+      track.style.transform  = `translateX(${trackBaseX()}px)`;
     }
   }, { passive: true });
 </script>
