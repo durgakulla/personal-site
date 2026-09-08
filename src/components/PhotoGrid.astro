@@ -213,6 +213,9 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   let sourceThumb: HTMLImageElement | null = null;
   let isDismissing = false;
   let isAnimating  = false;
+  // Bumped on every navigation so a slow image load can't land after the user
+  // has already moved on and overwrite the photo they're now looking at.
+  let navToken     = 0;
 
   // Track position, in px, with the current (middle) panel centered.
   function trackBaseX() {
@@ -286,44 +289,55 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     }
   }
 
-  // Points the prev/current/next panels at whatever `current` is now. The
-  // prev/next panels reuse the grid thumbnail's already-loaded image (cheap —
-  // no new request), while the current panel gets the full-res image.
-  function updateSlots() {
-    const curTile  = getTile(current);
+  // Explicit width/height lock each panel's box to the photo's real aspect
+  // ratio, independent of whichever resource (thumb vs. full-res) happens to be
+  // loaded — otherwise a plain `src` swap has no srcset/sizes context, so the
+  // browser sizes it from that resource's raw pixel dimensions and the box
+  // visibly jumps when the higher-res image takes over.
+  function sizeTo(img: HTMLImageElement, tile: HTMLElement, thumb: HTMLImageElement) {
+    img.alt    = thumb.alt;
+    img.width  = Number(tile.dataset.width)  || 0;
+    img.height = Number(tile.dataset.height) || 0;
+  }
+
+  function setCurrentMeta() {
+    const curTile = getTile(current);
+    sizeTo(lbImg, curTile, curTile.querySelector('img') as HTMLImageElement);
+  }
+
+  // The prev/next panels reuse the grid thumbnail's already-loaded image —
+  // cheap, no new request — so peeking at a neighbour costs nothing.
+  function updateNeighborPanels() {
     const prevTile = getTile(current - 1);
     const nextTile = getTile(current + 1);
-
-    const curThumb  = curTile.querySelector('img') as HTMLImageElement;
     const prevThumb = prevTile.querySelector('img') as HTMLImageElement;
     const nextThumb = nextTile.querySelector('img') as HTMLImageElement;
 
-    // Explicit width/height lock each panel's box to the photo's real aspect
-    // ratio, independent of whichever resource (thumb vs. full-res) happens to
-    // be loaded — otherwise a plain `src` swap has no srcset/sizes context, so
-    // the browser sizes it from that resource's raw pixel dimensions and the
-    // box visibly jumps when the higher-res image takes over.
-    lbImg.src = curTile.dataset.full || curThumb.currentSrc || curThumb.src;
-    lbImg.alt = curThumb.alt;
-    lbImg.width = Number(curTile.dataset.width) || 0;
-    lbImg.height = Number(curTile.dataset.height) || 0;
-
     lbImgPrev.src = prevThumb.currentSrc || prevThumb.src;
-    lbImgPrev.alt = prevThumb.alt;
-    lbImgPrev.width = Number(prevTile.dataset.width) || 0;
-    lbImgPrev.height = Number(prevTile.dataset.height) || 0;
+    sizeTo(lbImgPrev, prevTile, prevThumb);
     lbImgNext.src = nextThumb.currentSrc || nextThumb.src;
-    lbImgNext.alt = nextThumb.alt;
-    lbImgNext.width = Number(nextTile.dataset.width) || 0;
-    lbImgNext.height = Number(nextTile.dataset.height) || 0;
+    sizeTo(lbImgNext, nextTile, nextThumb);
+  }
 
-    sourceThumb = curThumb;
+  function updateChrome() {
+    const curTile = getTile(current);
+    sourceThumb = curTile.querySelector('img') as HTMLImageElement;
     counter.textContent = `${current + 1} / ${total}`;
     setExif(curTile);
 
     document.body.style.overflow = '';
     curTile.scrollIntoView({ block: 'center', behavior: 'instant' });
     document.body.style.overflow = 'hidden';
+  }
+
+  // Points the prev/current/next panels at whatever `current` is now.
+  function updateSlots() {
+    const curTile  = getTile(current);
+    const curThumb = curTile.querySelector('img') as HTMLImageElement;
+    setCurrentMeta();
+    lbImg.src = curTile.dataset.full || curThumb.currentSrc || curThumb.src;
+    updateNeighborPanels();
+    updateChrome();
   }
 
   // Simple crossfade for keyboard/button/click navigation — waits for the
@@ -333,6 +347,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   function fadeToPhoto(direction: -1 | 1) {
     if (isAnimating) return;
     isAnimating = true;
+    navToken++;
     resetZoom();
     lbImg.style.transition = 'opacity 0.15s ease';
     lbImg.style.opacity = '0';
@@ -369,29 +384,46 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     track.style.transform  = `translateX(${targetPx}px)`;
     setTimeout(() => {
       current = ((current + direction) % total + total) % total;
-      const fullSrc = getTile(current).dataset.full;
-      // The already-visible thumbnail panel is left exactly as it is until the
-      // full-res image has actually decoded — swapping lb-img's src and
-      // snapping the track in the same tick let the browser keep painting the
-      // *previous* photo's bitmap in lb-img for a frame while the new one
-      // decoded, flashing it right as the slide settled.
-      const finish = () => {
-        updateSlots();
+      const curTile  = getTile(current);
+      const curThumb = curTile.querySelector('img') as HTMLImageElement;
+
+      // Hand lb-img the exact image the neighbouring panel is already
+      // painting: same URL, already decoded, so this element takes it within a
+      // frame. Snapping the track while lb-img still held the *previous*
+      // photo's bitmap is what flashed it — and a detached preloader only
+      // warms the HTTP cache, it can't guarantee this element repainted.
+      const thumbSrc = curThumb.currentSrc || curThumb.src;
+      const fullSrc  = curTile.dataset.full;
+      const token    = ++navToken;
+
+      let snapped = false;
+      const snap = () => {
+        if (snapped || token !== navToken) return;
+        snapped = true;
+        lbImg.onload = null;
+        lbImg.onerror = null;
+        updateNeighborPanels();
+        updateChrome();
         snapTrackToCenter();
         isAnimating = false;
+
+        // Upgrade to the full-res file now that we're settled. It's the same
+        // photo, so whenever that swap lands there's nothing to flash.
+        if (fullSrc && new URL(fullSrc, location.href).href !== lbImg.src) {
+          const full = new Image();
+          full.onload = () => { if (token === navToken) lbImg.src = fullSrc; };
+          full.src = fullSrc;
+        }
       };
-      if (fullSrc) {
-        let done = false;
-        const finishOnce = () => { if (done) return; done = true; finish(); };
-        const preload = new Image();
-        preload.onload = finishOnce;
-        preload.onerror = finishOnce;
-        preload.src = fullSrc;
-        // decode() can hang indefinitely on some WebKit versions — never let a
-        // swipe get stuck waiting on it.
-        setTimeout(finishOnce, 1200);
+
+      setCurrentMeta();
+      if (lbImg.src === thumbSrc) {
+        snap();                     // already showing this photo
       } else {
-        finish();
+        lbImg.onload  = snap;
+        lbImg.onerror = snap;
+        lbImg.src = thumbSrc;
+        setTimeout(snap, 800);      // never let a swipe hang on a stalled load
       }
     }, 220);
   }
@@ -399,7 +431,10 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   function openLightbox(index: number, fromThumb = false) {
     current = ((index % total) + total) % total;
     resetZoom();
+    navToken++;
     isAnimating = false;
+    lbImg.onload = null;      // drop any handler left by an interrupted swipe
+    lbImg.onerror = null;
     lbImg.style.transition = '';
     lbImg.style.opacity = '1';
     updateSlots();
@@ -588,10 +623,31 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   lightbox.addEventListener('touchend', e => {
     if (lightbox.classList.contains('pointer-events-none')) return;
     if (pinching) {
-      if (e.touches.length === 0) {
+      // Fingers never lift simultaneously. With one still down, the pinch
+      // branch below stops matching and that finger falls through to the pan
+      // branch — which pans from tPanStart*, last seeded by some earlier
+      // single-finger touch. Re-seed from the finger that's actually still
+      // down, or the photo jumps by (finger − stale start). clampPan hides
+      // that at low zoom but the pan range is widest at MAX_ZOOM, which is
+      // why it only showed up when fully zoomed in.
+      if (e.touches.length === 1) {
         pinching = false;
-        if (zoom <= 1.02) resetZoom(true);
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        tPanStartX  = touchStartX;
+        tPanStartY  = touchStartY;
+        tPanX = panX; tPanY = panY;
+        return;
       }
+      // Still two or more down (e.g. a third finger lifted): keep pinching,
+      // but re-anchor so the scale doesn't jump on the next move.
+      if (e.touches.length >= 2) {
+        pinchDist = twoFingerDist(e.touches);
+        pinchZoom = zoom;
+        return;
+      }
+      pinching = false;
+      if (zoom <= 1.02) resetZoom(true);
       return;
     }
     if (zoom > 1) return;   // zoomed / panning — no swipe nav or dismiss
@@ -604,6 +660,17 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     } else {
       // Didn't clear the threshold — snap back to center instead of leaving
       // the photo stuck wherever the finger let go.
+      track.style.transition = 'transform 0.2s ease';
+      track.style.transform  = `translateX(${trackBaseX()}px)`;
+    }
+  }, { passive: true });
+
+  // A gesture the OS steals (system edge swipe, incoming call) fires no
+  // touchend, which would leave `pinching` stuck true and wedge every later
+  // touch — and leave the track parked wherever the finger was.
+  lightbox.addEventListener('touchcancel', () => {
+    pinching = false;
+    if (zoom <= 1) {
       track.style.transition = 'transform 0.2s ease';
       track.style.transform  = `translateX(${trackBaseX()}px)`;
     }
