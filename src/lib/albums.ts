@@ -2,6 +2,11 @@ import { readdirSync, statSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import sizeOf from 'image-size';
 import exifr from 'exifr';
+// Aspect thresholds, the display-name fallback and the cover rule are shared
+// with the client-side grid and the admin preview — see src/lib/layout.mjs.
+import { aspectFromDims, toDisplayName, effectiveCover } from './layout.mjs';
+
+export { toDisplayName };
 
 export type Aspect = 'landscape' | 'portrait' | 'square' | 'panorama';
 
@@ -71,23 +76,6 @@ function getAlbumOrder(): string[] {
   catch { return []; }
 }
 
-function aspectFromDims(w: number, h: number): Aspect {
-  const r = w / h;
-  // Slightly above 1.5 (not exactly 1.5) so a true 3:2 photo — the most common
-  // camera ratio — still lands as landscape even after integer-pixel rounding
-  // from resizing shifts it a hair past 1.5 (e.g. 2000/1333 = 1.50037).
-  if (r > 1.52) return 'panorama';
-  if (r > 1.2) return 'landscape';
-  if (r < 0.85) return 'portrait';
-  return 'square';
-}
-
-export function toDisplayName(slug: string): string {
-  return slug
-    .replace(/^\d+[-_]/, '')       // strip leading sort prefix e.g. "01-"
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
-}
 
 export function getAlbumSlugs(): string[] {
   const order = getAlbumOrder();
@@ -153,7 +141,10 @@ export async function getPhotosForAlbum(slug: string): Promise<Photo[]> {
     const raw = await exifr.parse(buf).catch(() => undefined);
     return {
       src: `/images/albums/${slug}/${DISPLAY_DIR}/${file}`,
-      alt: file.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+      // Decorative: in a photo gallery the image *is* the content, and a
+      // filename ("R0001997 edit1") is noise for a screen reader. An empty alt
+      // lets assistive tech skip straight to the tile's own label.
+      alt: '',
       aspect: aspectFromDims(width, height),
       width,
       height,
@@ -163,22 +154,17 @@ export async function getPhotosForAlbum(slug: string): Promise<Photo[]> {
   }));
 }
 
-export async function getAllPhotos(): Promise<Photo[]> {
-  const all = await Promise.all(getAlbumSlugs().map(getPhotosForAlbum));
-  return all.flat();
-}
-
 export function getAlbumCover(slug: string): Photo | null {
   const dir = join(ALBUMS_DIR, slug, DISPLAY_DIR);
-  const { cover: coverFile } = getAlbumInfo(slug);
-  const file = coverFile && IMAGE_RE.test(coverFile)
-    ? coverFile
-    : getOrderedFiles(slug)[0];
+  const file = effectiveCover(getAlbumInfo(slug), getOrderedFiles(slug));
   if (!file) return null;
   const { width = 1, height = 1 } = sizeOf(readFileSync(join(dir, file)));
   return {
     src: `/images/albums/${slug}/${DISPLAY_DIR}/${file}`,
-    alt: toDisplayName(slug),
+    // Decorative, like the album's own photos: the link wrapping this cover
+    // already carries the album name as text, so naming the image too would
+    // just make a screen reader say it twice.
+    alt: '',
     aspect: aspectFromDims(width, height),
     width,
     height,

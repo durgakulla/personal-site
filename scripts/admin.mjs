@@ -1,10 +1,16 @@
 import { createServer } from 'http';
-import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, rmSync } from 'fs';
-import { join, extname, basename } from 'path';
-import { execFileSync } from 'child_process';
+import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, rmSync, renameSync, createWriteStream } from 'fs';
+import { join, extname, basename, resolve, sep } from 'path';
+import { execFile } from 'child_process';
 
 const PORT      = 4001;
+// Bind to loopback only. This server has no auth and writes to the repo, so it
+// must not be reachable from the rest of the network.
+const HOST      = '127.0.0.1';
 const ALBUMS_DIR = join(process.cwd(), 'public/images/albums');
+// Layout rules shared with the built site; served to the browser as-is so the
+// preview and the real grid can't drift apart. See src/lib/layout.mjs.
+const LAYOUT_FILE = join(process.cwd(), 'src/lib/layout.mjs');
 const DATA_DIR   = join(process.cwd(), 'src/data');
 const CACHE_FILE = join(ALBUMS_DIR, '.optimize-cache.json');
 const IMAGE_RE   = /\.(jpg|jpeg|png|webp)$/i;
@@ -19,13 +25,34 @@ function timestamp() { return new Date().toTimeString().slice(0, 8); }
 function log(msg) { console.log(`[${timestamp()}] ${msg}`); }
 function logErr(action, err) { console.error(`[${timestamp()}] ✗ ${action} failed:`, err?.message ?? err); }
 
+// Write through a temp file and rename over the target: rename is atomic within
+// a filesystem, so a crash or a full disk can't leave one of the site's content
+// files half-written. These files are the only copy of the content.
+function writeFileAtomic(file, contents) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, contents, 'utf-8');
+    renameSync(tmp, file);
+  } catch (err) {
+    try { unlinkSync(tmp); } catch {}
+    throw err;
+  }
+}
+
+// The route patterns use [^/]+ so a slug can't contain a separator, but "." and
+// ".." would still climb out of ALBUMS_DIR. Returns null for anything unsafe.
+function safeSlug(raw) {
+  const slug = basename(String(raw ?? ''));
+  return slug && !slug.startsWith('.') ? slug : null;
+}
+
 function getAlbumOrder() {
   try { return JSON.parse(readFileSync(ALBUM_ORDER_FILE, 'utf-8')).order ?? []; }
   catch { return []; }
 }
 
 function saveAlbumOrder(order) {
-  writeFileSync(ALBUM_ORDER_FILE, JSON.stringify({ order }, null, 2) + '\n', 'utf-8');
+  writeFileAtomic(ALBUM_ORDER_FILE, JSON.stringify({ order }, null, 2) + '\n');
   log(`Saved album order (${order.length})`);
 }
 
@@ -50,12 +77,12 @@ function getAlbums() {
 }
 
 function saveInfo(slug, info) {
-  writeFileSync(join(ALBUMS_DIR, slug, 'info.json'), JSON.stringify(info, null, 2) + '\n', 'utf-8');
+  writeFileAtomic(join(ALBUMS_DIR, slug, 'info.json'), JSON.stringify(info, null, 2) + '\n');
   log(`Saved ${slug}/info.json`);
 }
 
 function readJSON(file)       { return JSON.parse(readFileSync(join(DATA_DIR, file), 'utf-8')); }
-function writeJSON(file, data){ writeFileSync(join(DATA_DIR, file), JSON.stringify(data, null, 2) + '\n', 'utf-8'); log(`Saved src/data/${file}`); }
+function writeJSON(file, data){ writeFileAtomic(join(DATA_DIR, file), JSON.stringify(data, null, 2) + '\n'); log(`Saved src/data/${file}`); }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const CURRENT_YEAR = new Date().getFullYear();
@@ -101,7 +128,7 @@ const HTML = `<!DOCTYPE html>
   body.dark .sidebar-label { color: #a8a29e; }
   .sidebar-hint { font-size: 11px; color: #a8a29e; padding: 0 16px 10px; }
   body.dark .sidebar-hint { color: #78716c; }
-  .nav-item { padding: 3px 16px; cursor: pointer; color: #78716c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.1s; text-align: left; }
+  .nav-item { padding: 5px 16px; font-size: 16px; cursor: pointer; color: #78716c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.1s; text-align: left; }
   body.dark .nav-item { color: #a8a29e; }
   .nav-item:hover { color: #1c1917; }
   body.dark .nav-item:hover { color: #e7e5e4; }
@@ -109,7 +136,7 @@ const HTML = `<!DOCTYPE html>
   body.dark .nav-item.active { color: #e7e5e4; }
 
   /* ── Album nav list (draggable, numbered) ── */
-  .album-nav-item { display: flex; align-items: center; gap: 8px; margin: 0 16px 6px; padding: 6px 10px; cursor: grab; color: #78716c; border: 1px solid #e7e5e4; border-radius: 8px; background: #fff; transition: color 0.1s, opacity 0.15s, border-color 0.15s; }
+  .album-nav-item { display: flex; align-items: center; gap: 8px; margin: 0 16px 7px; padding: 8px 11px; font-size: 16px; cursor: grab; color: #78716c; border: 1px solid #e7e5e4; border-radius: 8px; background: #fff; transition: color 0.1s, opacity 0.15s, border-color 0.15s; }
   body.dark .album-nav-item { color: #a8a29e; background: #1c1917; border-color: #292524; }
   .album-nav-item:hover { color: #1c1917; border-color: #d6d3d1; }
   body.dark .album-nav-item:hover { color: #e7e5e4; border-color: #44403c; }
@@ -119,7 +146,7 @@ const HTML = `<!DOCTYPE html>
   #album-list { position: relative; }
   .drop-line-h { position: absolute; left: 16px; right: 16px; height: 2px; background: #1c1917; border-radius: 2px; pointer-events: none; z-index: 10; }
   body.dark .drop-line-h { background: #e7e5e4; }
-  .album-drag-handle { flex-shrink: 0; cursor: grab; color: #d6d3d1; font-size: 13px; line-height: 1; user-select: none; }
+  .album-drag-handle { flex-shrink: 0; cursor: grab; color: #d6d3d1; font-size: 14px; line-height: 1; user-select: none; }
   body.dark .album-drag-handle { color: #44403c; }
   .album-nav-item:active .album-drag-handle, .album-nav-item.dragging .album-drag-handle { cursor: grabbing; }
   .album-nav-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -131,6 +158,9 @@ const HTML = `<!DOCTYPE html>
   .editor.drag-over { outline: 2px dashed #1c1917; outline-offset: -10px; background: rgba(28,25,23,0.03); }
   body.dark .editor.drag-over { outline-color: #e7e5e4; background: rgba(231,229,228,0.04); }
   .editor-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0; margin-bottom: 14px; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #a8a29e; cursor: pointer; transition: color 0.1s; }
+  .back-link:hover { color: #1c1917; }
+  body.dark .back-link:hover { color: #e7e5e4; }
   .editor-sub { font-size: 12px; color: #a8a29e; margin-bottom: 28px; }
 
   /* ── Form fields ── */
@@ -188,7 +218,9 @@ const HTML = `<!DOCTYPE html>
 
   /* ── Homepage preview (mirrors index.astro's forced-even grid + title-overlay tiles) ── */
   #home-masonry-preview { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .home-preview-item { position: relative; aspect-ratio: 4 / 3; border-radius: 4px; overflow: hidden; }
+  .home-preview-item { position: relative; aspect-ratio: 4 / 3; border-radius: 4px; overflow: hidden; cursor: pointer; }
+  .home-preview-item:hover { outline: 2px solid #0ea5e9; outline-offset: 1px; }
+  .home-preview-item:hover .home-preview-overlay { background: rgba(0,0,0,0.5); }
   .home-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .home-preview-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 12px; }
   .home-preview-title { color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.9; font-size: clamp(14px, 4vw, 26px); word-break: break-word; }
@@ -244,13 +276,21 @@ const HTML = `<!DOCTYPE html>
   .save-btn:hover { opacity: 0.75; }
   .save-status { font-size: 13px; color: #16a34a; font-weight: 600; opacity: 0; transition: opacity 0.3s; }
   .save-status.show { opacity: 1; }
+  .save-status.error { color: #dc2626; }
   .delete-album-btn { background: none; color: #dc2626; border: 1px solid #dc2626; padding: 9px 16px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s, color 0.15s; }
   .delete-album-btn:hover { background: #dc2626; color: #fff; }
 </style>
 </head>
 <body>
 <script>
-  if (localStorage.getItem('admin-theme') !== 'light') document.body.classList.add('dark');
+  // Apply the theme before paint. The cookie is what the live site writes too —
+  // cookies are shared across ports on a host, localStorage isn't — so the two
+  // stay in sync; localStorage is only the fallback for a first visit.
+  (function () {
+    var c = document.cookie.match(/(?:^|;\\s*)theme=(dark|light)/);
+    var pref = c ? c[1] : localStorage.getItem('admin-theme');
+    if (pref !== 'light') document.body.classList.add('dark');
+  })();
 </script>
 
 <div id="sidebar">
@@ -322,6 +362,7 @@ const HTML = `<!DOCTYPE html>
       <div class="section-hint">Drag to reorder (Controls homepage &amp; menu order) &nbsp;·&nbsp; Double click to edit album</div>
       <div id="album-sort-strip"></div>
       <div class="preview-label">Homepage Preview</div>
+      <div class="section-hint">Click an album to edit it</div>
       <div id="home-masonry-preview"></div>
     </div>
     <div class="save-row">
@@ -332,6 +373,7 @@ const HTML = `<!DOCTYPE html>
 
   <!-- ── Album editor ── -->
   <div id="album-editor" class="editor">
+    <button class="back-link" id="album-back-btn">← Home/Album Index</button>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:4px;">
       <div class="editor-title" id="e-slug" style="margin-bottom:0;"></div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
@@ -444,23 +486,72 @@ const HTML = `<!DOCTYPE html>
   <div id="mini-preview-grid"></div>
 </div>
 
-<script>
+<script type="module">
+// The aspect thresholds, the display-name fallback, the cover rule and the
+// masonry packing all come from the same file the built site uses, served by
+// this server at /layout.mjs — so the preview below can't drift from the real
+// grid. See src/lib/layout.mjs.
+import { aspectFromRatio, toDisplayName, effectiveCover, planMasonry } from '/layout.mjs';
+
 let albums = [], currentAlbum = null, currentView = null, dragSrc = null, aboutData = {}, socialsData = [];
 function photoUrl(slug, f) { return '/albums/' + slug + '/display/' + f; }
 // Smallest responsive derivative — used for thumbnails so we don't pull the
 // full-size display image just to render a tiny preview. Falls back to the
 // full image (via onerror) when no derivative exists for a file.
 function thumbUrl(slug, f, width) { return '/albums/' + slug + '/resized/' + f.replace(/\.[^.]+$/, '') + '-' + width + 'w.webp'; }
-// Mirrors toDisplayName() in src/lib/albums.ts — the fallback the live site
-// uses when an album has no explicit name in info.json.
 function albumDisplayName(a) {
-  if (a.info.name) return a.info.name;
-  return a.slug
-    .replace(/^\\d+[-_]/, '')
-    .replace(/[-_]/g, ' ')
-    .replace(/\\b\\w/g, c => c.toUpperCase());
+  return a.info.name || toDisplayName(a.slug);
 }
 const aspectCache = {};
+
+// ── Routing ────────────────────────────────────────────────────────────────
+// Every editor view has its own URL (/, /about, /projects, /album/<slug>) so
+// back/forward, reload, and deep links all work. The server serves this same
+// page for any path it doesn't recognise as an API route or album asset, so a
+// hard load of /album/san-francisco renders straight into that album.
+const TITLES = { home: 'Homepage', about: 'About', projects: 'Projects' };
+
+function routePath(view, slug) {
+  if (view === 'album')    return '/album/' + encodeURIComponent(slug);
+  if (view === 'about')    return '/about';
+  if (view === 'projects') return '/projects';
+  return '/';
+}
+
+function parseRoute() {
+  let path;
+  try { path = decodeURIComponent(location.pathname); } catch { path = location.pathname; }
+  const m = path.match(/^\\/album\\/(.+?)\\/?$/);
+  if (m) return { view: 'album', slug: m[1] };
+  if (/^\\/about\\/?$/.test(path))    return { view: 'about' };
+  if (/^\\/projects\\/?$/.test(path)) return { view: 'projects' };
+  return { view: 'home' };
+}
+
+// hist: 'push' (a normal in-app navigation), 'replace' (correct the URL
+// without adding an entry), or false (rendering what the URL already says,
+// e.g. a popstate — leave history alone).
+function syncUrl(hist, view, slug) {
+  document.title = 'Site Admin — ' + (view === 'album' ? slug : TITLES[view]);
+  if (!hist) return;
+  const path = routePath(view, slug);
+  // Re-selecting the current view shouldn't stack a duplicate entry.
+  if (hist === 'push' && location.pathname === path) return;
+  history[hist === 'replace' ? 'replaceState' : 'pushState']({ view, slug: slug ?? null }, '', path);
+}
+
+// Render whichever view the current URL names. Used on first load and on
+// back/forward; an unknown album slug falls back to the homepage editor.
+function renderRoute(hist) {
+  const r = parseRoute();
+  if (r.view === 'album') {
+    if (albums.some(a => a.slug === r.slug)) return selectAlbum(r.slug, hist);
+    return selectHome('replace');
+  }
+  if (r.view === 'about')    return selectAbout(hist);
+  if (r.view === 'projects') return selectProjects(hist);
+  return selectHome(hist);
+}
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 async function load() {
@@ -468,7 +559,8 @@ async function load() {
   renderSidebar();
   aboutData = await fetch('/api/about').then(r => r.json()).catch(() => ({}));
   document.getElementById('site-name').textContent = aboutData.name ?? '';
-  selectHome();
+  window.addEventListener('popstate', () => renderRoute(false));
+  renderRoute('replace');
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
@@ -547,17 +639,17 @@ function renderSidebar() {
   const pageHandlers = { home: selectHome, about: selectAbout, projects: selectProjects };
   document.querySelectorAll('[data-page]').forEach(el => {
     el.classList.toggle('active', el.dataset.page === currentView);
-    el.onclick = pageHandlers[el.dataset.page];
+    el.onclick = () => pageHandlers[el.dataset.page]();
   });
 }
 
 async function saveAlbumOrder(slugs) {
   albums.sort((a, b) => slugs.indexOf(a.slug) - slugs.indexOf(b.slug));
-  await fetch('/api/album-order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ order: slugs }),
-  });
+  try {
+    await postJSON('/api/album-order', { order: slugs });
+  } catch (err) {
+    reportSaveError(['home-save-status', 'home-save-status-top'], err);
+  }
   renderSidebar();
   if (currentView === 'home') {
     updateHomeEmptyState();
@@ -586,8 +678,49 @@ function updateAlbumEmptyState() {
 
 function flashSaved(id) {
   const el = document.getElementById(id);
+  el.textContent = 'Saved!';
+  el.classList.remove('error');
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2000);
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// Every write goes through here so a failed save can never be reported as a
+// success — an unchecked fetch() resolves happily on a 500.
+async function postJSON(url, data) {
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    throw new Error('could not reach the admin server (is it still running?)');
+  }
+  if (!res.ok) throw new Error('server returned HTTP ' + res.status);
+  return res;
+}
+
+const ALBUM_STATUS_IDS = ['album-save-status', 'album-save-status-bottom'];
+
+// Leave the message on screen rather than flashing it away — a lost edit is
+// worth interrupting for.
+function reportSaveError(statusIds, err) {
+  console.error('Save failed:', err);
+  let shown = 0;
+  for (const id of [].concat(statusIds)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    // Cancel any pending fade left over from an earlier "Saved!" — an error
+    // must not disappear on a timer the success path started.
+    clearTimeout(el._hideTimer);
+    el.textContent = 'Not saved — ' + err.message;
+    el.classList.add('error', 'show');
+    shown++;
+  }
+  // A failure the user can't see is the bug this function exists to prevent.
+  if (!shown) console.warn('reportSaveError: no status element for', statusIds);
 }
 
 // ── Generic drag-and-drop for .list-item lists ─────────────────────────────
@@ -651,7 +784,7 @@ function ensureDragContainer(container) {
 }
 
 // ── Album editor ───────────────────────────────────────────────────────────
-async function selectAlbum(slug) {
+async function selectAlbum(slug, hist = 'push') {
   await flushAutosave();
   await homeAutosave.flush();
   await aboutAutosave.flush();
@@ -660,6 +793,7 @@ async function selectAlbum(slug) {
   currentAlbum = albums.find(a => a.slug === slug);
   currentView  = null;
   if (!currentAlbum) return;
+  syncUrl(hist, 'album', slug);
   if (Array.isArray(currentAlbum.info.order) && currentAlbum.info.order.length) {
     const idx = {};
     currentAlbum.info.order.forEach((f, i) => { idx[f] = i; });
@@ -680,26 +814,6 @@ async function selectAlbum(slug) {
   document.getElementById('album-save-status-bottom').classList.remove('show');
 }
 
-// Mirrors the live site's fallback in getAlbumCover(): the first photo in
-// display order stands in as the cover whenever none is explicitly set.
-function effectiveCover(info, photos) {
-  return info.cover || photos[0];
-}
-
-// Keep in sync with aspectFromDims in src/lib/albums.ts and the aspectHeights
-// bucket map in src/components/PhotoGrid.astro — matching how the live site
-// categorizes and balances photos.
-const PANORAMA_THRESHOLD = 1.52;
-const LANDSCAPE_THRESHOLD = 1.2;
-const PORTRAIT_THRESHOLD = 0.85;
-const ASPECT_HEIGHTS = { landscape: 0.75, portrait: 1.5, square: 1.0 };
-
-function aspectHeight(aspect) {
-  if (aspect > LANDSCAPE_THRESHOLD) return ASPECT_HEIGHTS.landscape;
-  if (aspect < PORTRAIT_THRESHOLD) return ASPECT_HEIGHTS.portrait;
-  return ASPECT_HEIGHTS.square;
-}
-
 async function loadAspect(slug, file) {
   const key = slug + '/' + file;
   if (aspectCache[key]) return aspectCache[key];
@@ -717,42 +831,26 @@ async function loadAspect(slug, file) {
   });
 }
 
-// Lay out pre-built items (each with a computed aspect ratio) into a 2-column
-// masonry preview, matching the live site's algorithm: panoramas break out to
-// full-width rows, everything else balances into the shorter column.
+// Render the shared 2-column plan into the preview's markup. The packing
+// decisions come from planMasonry(), the same function the live grid uses.
 function layoutMasonryPreview(container, entries) {
   container.innerHTML = '';
 
-  function flushRun(run) {
-    if (!run.length) return;
+  for (const entry of planMasonry(entries, 2)) {
+    if (entry.type === 'panorama') {
+      container.appendChild(entry.item.el);   // full-width, outside the columns
+      continue;
+    }
     const row = document.createElement('div');
     row.className = 'preview-row';
-    const cols = [0, 1].map(() => {
-      const div = document.createElement('div');
-      div.className = 'preview-col';
-      row.appendChild(div);
-      return div;
-    });
-    const heights = [0, 0];
-    run.forEach(({ el, aspect }) => {
-      const shortest = heights.indexOf(Math.min(...heights));
-      cols[shortest].appendChild(el);
-      heights[shortest] += aspectHeight(aspect);
-    });
+    for (const column of entry.columns) {
+      const col = document.createElement('div');
+      col.className = 'preview-col';
+      column.forEach(({ el }) => col.appendChild(el));
+      row.appendChild(col);
+    }
     container.appendChild(row);
   }
-
-  let run = [];
-  entries.forEach(entry => {
-    if (entry.aspect > PANORAMA_THRESHOLD) {
-      flushRun(run);
-      run = [];
-      container.appendChild(entry.el);
-    } else {
-      run.push(entry);
-    }
-  });
-  flushRun(run);
 }
 
 function renderOrderStrip() {
@@ -904,7 +1002,10 @@ async function renderMasonryPreview() {
   }
 
   const container = document.getElementById('masonry-preview');
-  const entries = photos.map(f => ({ el: makeItem(f), aspect: aspectCache[slug + '/' + f] ?? 1.33 }));
+  const entries = photos.map(f => ({
+    el: makeItem(f),
+    aspect: aspectFromRatio(aspectCache[slug + '/' + f] ?? 1.33),
+  }));
   layoutMasonryPreview(container, entries);
 
   document.getElementById('mini-preview-grid').innerHTML = container.innerHTML;
@@ -928,17 +1029,24 @@ function buildAlbumInfo() {
 
 async function saveAlbumInfo() {
   const info = buildAlbumInfo();
-  await fetch('/api/albums/' + currentAlbum.slug, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(info) });
+  await postJSON('/api/albums/' + encodeURIComponent(currentAlbum.slug), info);
   currentAlbum.info = info;
   return info;
 }
 
 document.querySelectorAll('.album-save-trigger').forEach(btn => btn.addEventListener('click', async () => {
   if (!currentAlbum) return;
-  await saveAlbumInfo();
+  try {
+    await saveAlbumInfo();
+  } catch (err) {
+    reportSaveError(ALBUM_STATUS_IDS, err);
+    return;
+  }
   flashSaved('album-save-status');
   flashSaved('album-save-status-bottom');
 }));
+
+document.getElementById('album-back-btn').addEventListener('click', () => selectHome());
 
 document.getElementById('delete-album-btn').addEventListener('click', async () => {
   if (!currentAlbum) return;
@@ -977,8 +1085,15 @@ function autosaveAlbum() {
 async function flushAutosave() {
   clearTimeout(autosaveTimer);
   if (!autosavePending || !currentAlbum) return;
+  try {
+    await saveAlbumInfo();
+  } catch (err) {
+    // Leave autosavePending set so the next edit (or an explicit Save) retries
+    // instead of silently dropping the change — and never claim "Saved!".
+    reportSaveError(ALBUM_STATUS_IDS, err);
+    return;
+  }
   autosavePending = false;
-  await saveAlbumInfo();
   flashSaved('album-save-status');
   flashSaved('album-save-status-bottom');
 }
@@ -1003,8 +1118,14 @@ function makeAutosave(saveFn, statusIds) {
   async function flush() {
     clearTimeout(timer);
     if (!pending) return;
+    try {
+      await saveFn();
+    } catch (err) {
+      // Stay pending so the change is retried rather than quietly dropped.
+      reportSaveError(statusIds, err);
+      return;
+    }
     pending = false;
-    await saveFn();
     statusIds.forEach(flashSaved);
   }
   return { trigger, flush };
@@ -1070,13 +1191,14 @@ function createGearItem(text) {
 }
 
 // ── Home editor ───────────────────────────────────────────────────────────
-async function selectHome() {
+async function selectHome(hist = 'push') {
   await flushAutosave();
   await aboutAutosave.flush();
   await socialsAutosave.flush();
   await projectsAutosave.flush();
   currentAlbum = null;
   currentView  = 'home';
+  syncUrl(hist, 'home');
   renderSidebar();
   showEditor('home-editor');
   document.getElementById('home-name').value    = aboutData.name    ?? '';
@@ -1225,6 +1347,10 @@ function renderHomeMasonryPreview() {
     }
 
     item.appendChild(overlay);
+
+    item.title = 'Edit ' + albumDisplayName(a);
+    item.addEventListener('click', () => selectAlbum(a.slug));
+
     container.appendChild(item);
   });
 }
@@ -1235,7 +1361,7 @@ async function saveHomeData() {
     name:    document.getElementById('home-name').value.trim(),
     tagline: document.getElementById('home-tagline').value.trim(),
   };
-  await fetch('/api/about', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aboutData) });
+  await postJSON('/api/about', aboutData);
   document.getElementById('site-name').textContent = aboutData.name ?? '';
 }
 
@@ -1256,12 +1382,13 @@ document.getElementById('site-title-link').addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectHome(); }
 });
 
-async function selectAbout() {
+async function selectAbout(hist = 'push') {
   await flushAutosave();
   await homeAutosave.flush();
   await projectsAutosave.flush();
   currentAlbum = null;
   currentView  = 'about';
+  syncUrl(hist, 'about');
   renderSidebar();
   showEditor('about-editor');
   document.getElementById('about-heading').value = aboutData.heading ?? '';
@@ -1298,7 +1425,7 @@ async function saveAboutData() {
     gear:    [...document.getElementById('gear-list').querySelectorAll('input.bare')]
                .map(i => i.value.trim()).filter(Boolean),
   };
-  await fetch('/api/about', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aboutData) });
+  await postJSON('/api/about', aboutData);
 }
 
 const aboutAutosave = makeAutosave(saveAboutData, ['about-save-status', 'about-save-status-top']);
@@ -1378,7 +1505,7 @@ async function saveSocialsData() {
     label: card.querySelector('.social-label').value.trim(),
     href:  card.querySelector('.social-href').value.trim(),
   })).filter(s => s.label && s.href);
-  await fetch('/api/socials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(socialsData) });
+  await postJSON('/api/socials', socialsData);
 }
 
 const socialsAutosave = makeAutosave(saveSocialsData, ['about-save-status', 'about-save-status-top']);
@@ -1427,13 +1554,14 @@ function createProjectCard(proj) {
   return div;
 }
 
-async function selectProjects() {
+async function selectProjects(hist = 'push') {
   await flushAutosave();
   await homeAutosave.flush();
   await aboutAutosave.flush();
   await socialsAutosave.flush();
   currentAlbum = null;
   currentView  = 'projects';
+  syncUrl(hist, 'projects');
   renderSidebar();
   showEditor('projects-editor');
   const data = await fetch('/api/projects').then(r => r.json());
@@ -1455,7 +1583,7 @@ async function saveProjectsData() {
     description: card.querySelector('.proj-desc').value.trim(),
     href:        card.querySelector('.proj-url').value.trim(),
   })).filter(p => p.name);
-  await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(projects) });
+  await postJSON('/api/projects', projects);
 }
 
 const projectsAutosave = makeAutosave(saveProjectsData, ['projects-save-status', 'projects-save-status-top']);
@@ -1480,17 +1608,33 @@ async function uploadFiles(files) {
   const images = [...files].filter(f => IMAGE_TYPES.test(f.name));
   if (!images.length) return;
 
-  setUploadStatus('Uploading ' + images.length + ' image' + (images.length > 1 ? 's' : '') + '…');
+  const slug = currentAlbum.slug;
+  let done = 0;
+  const showProgress = () =>
+    setUploadStatus('Uploading ' + (done + 1) + ' of ' + images.length + '…');
+  showProgress();
+
   try {
-    await Promise.all(images.map(file =>
-      fetch(\`/api/albums/\${encodeURIComponent(currentAlbum.slug)}/upload?filename=\${encodeURIComponent(file.name)}\`, {
-        method: 'POST',
-        body: file,
-      })
-    ));
+    // Upload a few at a time rather than all at once: each request streams a
+    // full-res original, and firing forty in parallel just makes every one of
+    // them slower (and used to hold all forty in the server's memory at once).
+    const UPLOAD_CONCURRENCY = 4;
+    const queue = [...images];
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, async () => {
+      for (let file = queue.shift(); file; file = queue.shift()) {
+        const res = await fetch(
+          \`/api/albums/\${encodeURIComponent(slug)}/upload?filename=\${encodeURIComponent(file.name)}\`,
+          { method: 'POST', body: file },
+        );
+        if (!res.ok) throw new Error('upload of ' + file.name + ' failed (HTTP ' + res.status + ')');
+        done++;
+        if (done < images.length) showProgress();
+      }
+    }));
 
     setUploadStatus('Processing…');
-    const res = await fetch(\`/api/albums/\${encodeURIComponent(currentAlbum.slug)}/process\`, { method: 'POST' });
+    const res = await fetch(\`/api/albums/\${encodeURIComponent(slug)}/process\`, { method: 'POST' });
+    if (!res.ok) throw new Error('image processing failed (HTTP ' + res.status + ')');
     const { photos } = await res.json();
 
     const existing = new Set(currentAlbum.photos);
@@ -1504,7 +1648,7 @@ async function uploadFiles(files) {
     flashSaved('album-save-status');
     flashSaved('album-save-status-bottom');
   } catch (err) {
-    setUploadStatus('Upload failed — see console');
+    setUploadStatus(err.message || 'Upload failed — see console');
     console.error(err);
   } finally {
     setTimeout(() => setUploadStatus(''), 2500);
@@ -1559,22 +1703,36 @@ albumEditorEl.addEventListener('drop', e => {
 });
 
 // ── Theme ──────────────────────────────────────────────────────────────────
+// Shared with the site via a cookie (see the pre-paint script up top): both run
+// on localhost, and cookies — unlike localStorage — aren't scoped to the port,
+// so toggling here also flips the dev site at :4321, and vice versa.
 const themeBtn      = document.getElementById('theme-btn');
 const iconMoon      = document.getElementById('icon-moon');
 const iconSun       = document.getElementById('icon-sun');
 const themeBtnLabel = document.getElementById('theme-btn-label');
-if (localStorage.getItem('admin-theme') !== 'light') {
-  document.body.classList.add('dark');
-  iconMoon.style.display = 'none';
-  iconSun.style.display  = '';
-  themeBtnLabel.textContent = 'Light';
+
+function readThemePref() {
+  const c = document.cookie.match(/(?:^|;\\s*)theme=(dark|light)/);
+  return c ? c[1] : localStorage.getItem('admin-theme');
 }
-themeBtn.addEventListener('click', () => {
-  const dark = document.body.classList.toggle('dark');
+
+function applyTheme(dark, persist) {
+  document.body.classList.toggle('dark', dark);
   iconMoon.style.display = dark ? 'none' : '';
   iconSun.style.display  = dark ? '' : 'none';
   themeBtnLabel.textContent = dark ? 'Light' : 'Dark';
+  if (!persist) return;
   localStorage.setItem('admin-theme', dark ? 'dark' : 'light');
+  document.cookie = 'theme=' + (dark ? 'dark' : 'light') + ';path=/;max-age=31536000;SameSite=Lax';
+}
+
+applyTheme(readThemePref() !== 'light', false);
+themeBtn.addEventListener('click', () => applyTheme(!document.body.classList.contains('dark'), true));
+
+// Cookie changes fire no event, so re-read on refocus — flip the theme on the
+// site, come back to this tab, and it follows without a reload.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) applyTheme(readThemePref() !== 'light', false);
 });
 
 // ── New album ──────────────────────────────────────────────────────────────────
@@ -1612,8 +1770,26 @@ createServer((req, res) => {
   let path;
   try { path = decodeURIComponent(rawPath); } catch { path = rawPath; }
 
+  // Shared layout rules, served straight from src/ so the admin preview and the
+  // built site run the exact same code.
+  if (path === '/layout.mjs') {
+    try {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(readFileSync(LAYOUT_FILE));
+    } catch (err) { res.writeHead(500); res.end(); logErr('read layout.mjs', err); }
+    return;
+  }
+
   if (path.startsWith('/albums/')) {
-    const filePath = join(ALBUMS_DIR, path.slice('/albums/'.length));
+    // `new URL()` normalises literal "../" segments, but percent-encoded ones
+    // survive it and are decoded above — so resolve the final path and confirm
+    // it really is inside ALBUMS_DIR before reading anything.
+    const filePath = resolve(ALBUMS_DIR, path.slice('/albums/'.length));
+    if (!filePath.startsWith(ALBUMS_DIR + sep)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
     try {
       const stat = statSync(filePath);
       const lastModified = stat.mtime.toUTCString();
@@ -1675,9 +1851,14 @@ createServer((req, res) => {
   }
 
   const albumM = path.match(/^\/api\/albums\/([^/]+)$/);
-  if (albumM && req.method === 'POST') return jsonPost(req, res, d => saveInfo(albumM[1], d));
+  if (albumM && req.method === 'POST') {
+    const slug = safeSlug(albumM[1]);
+    if (!slug) { res.writeHead(400); return res.end('{"error":"invalid slug"}'); }
+    return jsonPost(req, res, d => saveInfo(slug, d));
+  }
   if (albumM && req.method === 'DELETE') {
-    const slug = decodeURIComponent(albumM[1]);
+    const slug = safeSlug(albumM[1]);
+    if (!slug) { res.writeHead(400); return res.end('{"error":"invalid slug"}'); }
     try {
       rmSync(join(ALBUMS_DIR, slug), { recursive: true, force: true });
       try {
@@ -1685,7 +1866,7 @@ createServer((req, res) => {
         Object.keys(cache).forEach(k => {
           if (k === slug || k.startsWith(slug + '/') || k.startsWith('resized/' + slug + '/')) delete cache[k];
         });
-        writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
+        writeFileAtomic(CACHE_FILE, JSON.stringify(cache, null, 2));
       } catch {}
       saveAlbumOrder(getAlbumOrder().filter(s => s !== slug));
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1701,31 +1882,48 @@ createServer((req, res) => {
 
   const uploadM = path.match(/^\/api\/albums\/([^/]+)\/upload$/);
   if (uploadM && req.method === 'POST') {
-    const slug = uploadM[1];
+    const slug = safeSlug(uploadM[1]);
+    if (!slug) { res.writeHead(400); return res.end('{"error":"invalid slug"}'); }
     const filename = basename(new URL(req.url, `http://localhost:${PORT}`).searchParams.get('filename') ?? '');
     if (!IMAGE_RE.test(filename)) { res.writeHead(400); return res.end('{"error":"unsupported file type"}'); }
     const originalsDir = join(ALBUMS_DIR, slug, 'originals');
-    const chunks = [];
-    req.on('data', c => chunks.push(c));
-    req.on('end', () => {
-      try {
-        if (!existsSync(originalsDir)) mkdirSync(originalsDir, { recursive: true });
-        writeFileSync(join(originalsDir, filename), Buffer.concat(chunks));
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{"ok":true}');
-        log(`Uploaded ${filename} to ${slug}/originals`);
-      } catch (err) {
+    try {
+      if (!existsSync(originalsDir)) mkdirSync(originalsDir, { recursive: true });
+    } catch (err) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: String(err) }));
+      logErr(`create ${slug}/originals`, err);
+      return;
+    }
+    // Stream to disk rather than collecting the body in memory — a batch of
+    // full-res originals would otherwise sit in RAM all at once.
+    const dest = join(originalsDir, filename);
+    const out = createWriteStream(dest);
+    const fail = err => {
+      out.destroy();
+      try { unlinkSync(dest); } catch {}   // don't leave a truncated file behind
+      if (!res.headersSent) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: String(err) }));
-        logErr(`upload ${filename} to ${slug}`, err);
       }
+      logErr(`upload ${filename} to ${slug}`, err);
+    };
+    req.on('error', fail);
+    out.on('error', fail);
+    out.on('finish', () => {
+      if (res.headersSent) return;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"ok":true}');
+      log(`Uploaded ${filename} to ${slug}/originals`);
     });
+    req.pipe(out);
     return;
   }
 
   const deleteM = path.match(/^\/api\/albums\/([^/]+)\/photos\/([^/]+)$/);
   if (deleteM && req.method === 'DELETE') {
-    const slug = decodeURIComponent(deleteM[1]);
+    const slug = safeSlug(deleteM[1]);
+    if (!slug) { res.writeHead(400); return res.end('{"error":"invalid slug"}'); }
     const filename = basename(decodeURIComponent(deleteM[2]));
     const albumDir = join(ALBUMS_DIR, slug);
     const base = filename.replace(/\.[^.]+$/, '');
@@ -1740,7 +1938,7 @@ createServer((req, res) => {
         const cache = JSON.parse(readFileSync(CACHE_FILE, 'utf-8'));
         delete cache[`${slug}/${filename}`];
         delete cache[`resized/${slug}/${filename}`];
-        writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
+        writeFileAtomic(CACHE_FILE, JSON.stringify(cache, null, 2));
       } catch {}
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1756,21 +1954,27 @@ createServer((req, res) => {
 
   const processM = path.match(/^\/api\/albums\/([^/]+)\/process$/);
   if (processM && req.method === 'POST') {
-    const slug = processM[1];
-    try {
-      log(`Running image optimizer (triggered by ${slug})…`);
-      execFileSync('node', ['scripts/optimize-images.mjs'], { cwd: process.cwd(), stdio: 'inherit' });
+    const slug = safeSlug(processM[1]);
+    if (!slug) { res.writeHead(400); return res.end('{"error":"invalid slug"}'); }
+    log(`Running image optimizer (triggered by ${slug})…`);
+    // Async, not execFileSync: Node is single-threaded, so a synchronous run
+    // would freeze the whole admin — UI, thumbnails and all — until it finished.
+    execFile('node', ['scripts/optimize-images.mjs'], { cwd: process.cwd() }, (err, stdout, stderr) => {
+      if (stdout) process.stdout.write(stdout);
+      if (stderr) process.stderr.write(stderr);
+      if (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: String(err) }));
+        logErr(`optimize images for ${slug}`, err);
+        return;
+      }
       const displayDir = join(ALBUMS_DIR, slug, DISPLAY_DIR);
       const photos = existsSync(displayDir)
         ? readdirSync(displayDir).filter(f => IMAGE_RE.test(f) && !f.startsWith('.')).sort()
         : [];
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, photos }));
-    } catch (err) {
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: String(err) }));
-      logErr(`optimize images for ${slug}`, err);
-    }
+    });
     return;
   }
 
@@ -1783,6 +1987,15 @@ createServer((req, res) => {
   if (path === '/api/socials' && req.method === 'GET')  return jsonGet(res, readJSON('socials.json'));
   if (path === '/api/socials' && req.method === 'POST') return jsonPost(req, res, d => writeJSON('socials.json', d));
 
+  // Everything else is a client route (/, /about, /projects, /album/<slug>) and
+  // gets the app shell — except API paths, where falling through to HTML would
+  // hand fetch() a 200 that then explodes on .json().
+  if (path.startsWith('/api/')) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end('{"error":"not found"}');
+    return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(HTML);
-}).listen(PORT, () => console.log(`Site admin → http://localhost:${PORT}`));
+}).listen(PORT, HOST, () => console.log(`Site admin → http://localhost:${PORT}`));

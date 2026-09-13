@@ -80,9 +80,18 @@ const logoSecondLine = logoRestWords.join(' ');
       rel="stylesheet"
     />
     <!-- Apply theme before paint to prevent flash. Dark is the default; only an
-         explicit "light" choice opts out. -->
+         explicit "light" choice opts out. The choice is mirrored into a cookie,
+         which (unlike localStorage) is shared across ports on the same host, so
+         the local admin at :4001 and the dev site at :4321 stay in sync. -->
     <script is:inline>
-      if (localStorage.getItem('theme') !== 'light') document.documentElement.classList.add('dark');
+      (() => {
+        // Flags that scripting is live, which is what gates the JS-driven image
+        // fade-in in global.css — without it images would never become visible.
+        document.documentElement.classList.add('js');
+        const c = document.cookie.match(/(?:^|;\s*)theme=(dark|light)/);
+        const pref = c ? c[1] : localStorage.getItem('theme');
+        document.documentElement.classList.toggle('dark', pref !== 'light');
+      })();
     </script>
   </head>
   <body class="flex max-w-[1300px] mx-auto bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100">
@@ -218,15 +227,34 @@ const logoSecondLine = logoRestWords.join(' ');
   // ── Image fade-in ────────────────────────────────────────────────────────────
   document.querySelectorAll('img').forEach(img => {
     if (img.complete) img.classList.add('loaded');
-    else img.addEventListener('load', () => img.classList.add('loaded'));
+    else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
   });
 
   // ── Theme toggle ──────────────────────────────────────────────────────────────
+  // Written to a cookie as well as localStorage so the local admin — a
+  // different port, and so a different localStorage — sees the same choice.
+  // Only on localhost: in production there's no admin to sync with.
+  const themeSynced = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+  function readThemePref() {
+    const c = document.cookie.match(/(?:^|;\s*)theme=(dark|light)/);
+    return c ? c[1] : localStorage.getItem('theme');
+  }
+
   function toggleTheme() {
     const dark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme', dark ? 'dark' : 'light');
+    if (themeSynced) document.cookie = 'theme=' + (dark ? 'dark' : 'light') + ';path=/;max-age=31536000;SameSite=Lax';
   }
 
   document.getElementById('theme-toggle-desktop')?.addEventListener('click', toggleTheme);
   document.getElementById('theme-toggle-header')?.addEventListener('click', toggleTheme);
+
+  // Cookie changes fire no event, so re-read the shared preference whenever
+  // this tab comes back to the foreground: toggling in the admin and switching
+  // back here applies the change without a reload.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !themeSynced) return;
+    document.documentElement.classList.toggle('dark', readThemePref() !== 'light');
+  });
 </script>

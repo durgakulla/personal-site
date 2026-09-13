@@ -8,7 +8,9 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 // Album index uses a forced, evenly-cropped grid (unlike the true masonry on
 // album pages) — with only a handful of albums, uneven heights from varying
 // cover aspect ratios look like gaps rather than intentional variety.
-// Grid shows 1 column below 1000px, 2 columns above.
+// Grid shows 1 column below 1000px, 2 columns above — so the first tile is
+// above the fold at every width and is the LCP candidate; it loads eagerly
+// while the rest stay lazy.
 const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
 const albums = getAlbumSlugs().map(slug => {
@@ -26,7 +28,7 @@ const albums = getAlbumSlugs().map(slug => {
       </p>
     )}
     <div class="index-grid">
-      {albums.map(album => (
+      {albums.map((album, i) => (
         <a
           href={`/albums/${album.slug}`}
           class="index-grid-item group block overflow-hidden relative aspect-[4/3]"
@@ -38,7 +40,8 @@ const albums = getAlbumSlugs().map(slug => {
               sizes={SIZES}
               alt={album.cover.alt}
               class="w-full h-full object-cover block transition-transform duration-500 ease-out group-hover:scale-105"
-              loading="lazy"
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={i === 0 ? 'high' : undefined}
               decoding="async"
             />
           )}

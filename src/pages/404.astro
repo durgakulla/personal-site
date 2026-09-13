@@ -1,0 +1,22 @@
+---
+import Layout from '../layouts/Layout.astro';
+import about from '../data/about.json';
+---
+
+<Layout title={`Page not found — ${about.name}`} description="This page doesn't exist.">
+  <div class="px-6 md:px-12 pt-10 md:pt-16 pb-10 max-w-2xl">
+    <p class="text-[10px] tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500 mb-4">Error 404</p>
+    <h1 class="font-extrabold text-3xl md:text-4xl tracking-tight text-stone-900 dark:text-stone-100 mb-4">
+      Page not found
+    </h1>
+    <p class="text-base text-stone-600 dark:text-stone-400 leading-relaxed mb-8">
+      That page doesn&rsquo;t exist &mdash; it may have moved, or the link may be wrong.
+    </p>
+    <a
+      href="/"
+      class="inline-flex items-center gap-2 font-bold text-sm tracking-widest uppercase text-stone-900 dark:text-stone-100 hover:opacity-70 transition-opacity"
+    >
+      <span aria-hidden="true">&larr;</span> Back to albums
+    </a>
+  </div>
+</Layout>

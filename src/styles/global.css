@@ -23,12 +23,29 @@
   }
 }
 
-img {
+/* Images start hidden and fade in as they load (the .loaded class is added by
+   the script in Layout.astro). That's scoped to .js — set by the pre-paint
+   inline script — because without scripting nothing would ever add .loaded and
+   the whole gallery would render as blank boxes. */
+.js img {
   opacity: 0;
   transition: opacity 0.4s ease;
 }
-img.loaded {
+.js img.loaded {
   opacity: 1;
+}
+
+/* Honour a reduced-motion preference: hover scales, the image fade, and the
+   lightbox's inline FLIP transition all collapse to effectively instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .masonry {

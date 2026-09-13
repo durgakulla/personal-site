@@ -7,7 +7,8 @@ interface Props {
 
 const { photos } = Astro.props;
 
-// Grid shows 1 column below 1000px, 2 columns above.
+// Grid shows 1 column below 1000px, 2 columns above — the first two photos are
+// above the fold either way, so they load eagerly and the rest stay lazy.
 const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
 ---
@@ -31,7 +32,8 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
         height={photo.height}
         alt={photo.alt}
         class="w-full h-auto block"
-        loading="lazy"
+        loading={i < 2 ? 'eager' : 'lazy'}
+        fetchpriority={i === 0 ? 'high' : undefined}
         decoding="async"
       />
       {photo.exif && (
@@ -63,6 +65,8 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   class="fixed inset-0 z-50 bg-black/95 opacity-0 pointer-events-none transition-opacity duration-300 touch-none overscroll-contain overflow-hidden"
   aria-modal="true"
   role="dialog"
+  aria-label="Photo viewer"
+  inert
 >
   <button
     id="lb-close"
@@ -111,7 +115,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   </button>
 
   <!-- Counter (always visible, no gradient) -->
-  <p id="lb-counter" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white/50 text-xs tracking-widest"></p>
+  <p id="lb-counter" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white text-xs tracking-widest"></p>
 
   <!-- EXIF bar (only shown when EXIF exists) -->
   <div id="lb-exif-bar" class="hidden absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center pb-6 pt-8"
@@ -121,13 +125,11 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 </div>
 
 <script>
-  // ── Masonry ──────────────────────────────────────────────────────────────────
-  const aspectHeights: Record<string, number> = {
-    landscape: 0.75,
-    portrait:  1.5,
-    square:    1.0,
-  };
+  // The packing rules live in src/lib/layout.mjs so this grid and the admin's
+  // live preview can't drift apart — this file only renders the plan.
+  import { planMasonry } from '../lib/layout.mjs';
 
+  // ── Masonry ──────────────────────────────────────────────────────────────────
   function colCount() {
     if (window.innerWidth >= 1000) return 2;
     return 1;
@@ -143,40 +145,26 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     grid.querySelectorAll('.masonry-row').forEach(row => row.remove());
 
     const n = colCount();
+    const plan = planMasonry(
+      items.map(el => ({ el, aspect: el.dataset.aspect ?? 'landscape' })),
+      n,
+    );
 
-    // Panoramas break out of the column layout and render as full-width rows;
-    // everything else gets balanced into n columns between those breaks.
-    function flushRun(run: HTMLElement[]) {
-      if (!run.length) return;
+    for (const entry of plan) {
+      if (entry.type === 'panorama') {
+        grid.appendChild(entry.item.el);      // full-width, outside the columns
+        continue;
+      }
       const row = document.createElement('div');
       row.className = 'masonry-row';
-      const cols: HTMLElement[] = Array.from({ length: n }, () => {
-        const div = document.createElement('div');
-        div.className = 'masonry-col';
-        row.appendChild(div);
-        return div;
-      });
-      const heights = new Array(cols.length).fill(0);
-      run.forEach(item => {
-        const aspect = item.dataset.aspect ?? 'landscape';
-        const shortest = heights.indexOf(Math.min(...heights));
-        cols[shortest].appendChild(item);
-        heights[shortest] += aspectHeights[aspect] ?? 1;
-      });
+      for (const column of entry.columns) {
+        const col = document.createElement('div');
+        col.className = 'masonry-col';
+        column.forEach(({ el }) => col.appendChild(el));
+        row.appendChild(col);
+      }
       grid.appendChild(row);
     }
-
-    let run: HTMLElement[] = [];
-    items.forEach(item => {
-      if (item.dataset.aspect === 'panorama') {
-        flushRun(run);
-        run = [];
-        grid.appendChild(item);
-      } else {
-        run.push(item);
-      }
-    });
-    flushRun(run);
   }
 
   buildMasonry();
@@ -208,6 +196,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   const lbExif     = document.getElementById('lb-exif')!;
   const lbExifBar  = document.getElementById('lb-exif-bar')!;
   const lbZoom     = document.getElementById('lb-zoom')!;
+  const lbClose    = document.getElementById('lb-close')!;
   const total      = document.querySelectorAll('[data-lightbox-index]').length;
   let current      = 0;
   let sourceThumb: HTMLImageElement | null = null;
@@ -442,6 +431,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
     const wasHidden = lightbox.classList.contains('opacity-0');
     lightbox.classList.remove('opacity-0', 'pointer-events-none');
+    lightbox.removeAttribute('inert');
     document.body.style.overflow = 'hidden';
 
     // FLIP open animation — only on first open from thumbnail click
@@ -465,6 +455,9 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
   function closeLightbox() {
     lightbox.classList.add('opacity-0', 'pointer-events-none');
+    // inert keeps the close/prev/next buttons out of the tab order and out of
+    // the accessibility tree while the lightbox is hidden behind opacity-0.
+    lightbox.setAttribute('inert', '');
     document.body.style.overflow = '';
     resetZoom();
   }
@@ -487,6 +480,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     lightbox.classList.add('opacity-0');
     setTimeout(() => {
       lightbox.classList.add('pointer-events-none');
+      lightbox.setAttribute('inert', '');
       document.body.style.overflow = '';
       lbZoom.style.transition = 'none';
       lbZoom.style.transform  = '';
@@ -503,7 +497,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   });
 
   // ── Buttons / keyboard ────────────────────────────────────────────────────────
-  document.getElementById('lb-close')!.addEventListener('click', closeLightbox);
+  lbClose.addEventListener('click', closeLightbox);
   document.getElementById('lb-prev')!.addEventListener('click', () => fadeToPhoto(-1));
   document.getElementById('lb-next')!.addEventListener('click', () => fadeToPhoto(1));
   lightbox.addEventListener('click', e => {
@@ -685,5 +679,9 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   }
   window.addEventListener('scroll', updateScrollTopVisibility, { passive: true });
   updateScrollTopVisibility();
-  scrollTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  scrollTopBtn.addEventListener('click', () => window.scrollTo({
+    top: 0,
+    // scroll-behavior in CSS doesn't override an explicit JS option, so check.
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+  }));
 </script>
