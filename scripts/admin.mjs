@@ -232,6 +232,8 @@ const HTML = `<!DOCTYPE html>
   .preview-col { flex: 1; display: flex; flex-direction: column; gap: 8px; }
   .preview-item { position: relative; border-radius: 4px; overflow: hidden; }
   .preview-item img { width: 100%; height: auto; display: block; }
+  #masonry-preview .preview-item { cursor: pointer; }
+  #masonry-preview .preview-item:hover { outline: 2px solid #0ea5e9; outline-offset: -2px; }
   .preview-cover-badge { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.65); color: #fff; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 5px; border-radius: 3px; }
 
   /* ── Floating mini preview (wide viewports only) ── */
@@ -418,6 +420,7 @@ const HTML = `<!DOCTYPE html>
       <div class="section-hint">Drag to reorder &nbsp;·&nbsp; Double-click to set cover &nbsp;·&nbsp; Drop image files anywhere here to add them</div>
       <div id="order-strip"></div>
       <div class="preview-label">Preview</div>
+      <div class="section-hint">Double-click a photo to set it as the cover</div>
       <div id="masonry-preview"></div>
     </div>
     <div class="save-row">
@@ -853,6 +856,53 @@ function layoutMasonryPreview(container, entries) {
   }
 }
 
+// Setting the cover is reachable from both the order strip and the masonry
+// preview, so it lives here: update the album, move the badges, and let
+// autosave persist it.
+function setCover(file) {
+  if (!currentAlbum || currentAlbum.info.cover === file) return;
+  currentAlbum.info.cover = file;
+  refreshCoverBadges();
+  autosaveAlbum();
+}
+
+// Move the Cover badge in place rather than re-rendering the two grids. A full
+// re-render empties the preview first, and with the tall preview momentarily
+// gone the page shrinks and the browser clamps the scroll position to the top —
+// so double-clicking a photo would jump you back up to the order strip. Nothing
+// but the badge actually changes here, so nothing else needs rebuilding.
+function refreshCoverBadges() {
+  const cover = effectiveCover(currentAlbum.info, currentAlbum.photos);
+
+  document.querySelectorAll('#order-strip .strip-item').forEach(el => {
+    const isCover = el.dataset.file === cover;
+    el.classList.toggle('cover-selected', isCover);
+    el.querySelector('.cover-badge')?.remove();
+    if (isCover) {
+      const badge = document.createElement('span');
+      badge.className = 'cover-badge';
+      badge.textContent = 'Cover';
+      el.appendChild(badge);
+    }
+  });
+
+  document.querySelectorAll('#masonry-preview .preview-item').forEach(el => {
+    const isCover = el.dataset.file === cover;
+    el.querySelector('.preview-cover-badge')?.remove();
+    el.title = isCover ? 'Album cover' : 'Double-click to set as cover';
+    if (isCover) {
+      const badge = document.createElement('span');
+      badge.className = 'preview-cover-badge';
+      badge.textContent = 'Cover';
+      el.appendChild(badge);
+    }
+  });
+
+  // The floating mini panel is an innerHTML snapshot of the preview — resync it.
+  document.getElementById('mini-preview-grid').innerHTML =
+    document.getElementById('masonry-preview').innerHTML;
+}
+
 function renderOrderStrip() {
   updateAlbumEmptyState();
 
@@ -906,16 +956,7 @@ function renderOrderStrip() {
 
     item.addEventListener('dblclick', () => {
       if (dragSrc) return;
-      currentAlbum.info.cover = f;
-      strip.querySelectorAll('.strip-item').forEach(el => el.classList.remove('cover-selected'));
-      strip.querySelectorAll('.cover-badge').forEach(b => b.remove());
-      item.classList.add('cover-selected');
-      const badge = document.createElement('span');
-      badge.className = 'cover-badge';
-      badge.textContent = 'Cover';
-      item.appendChild(badge);
-      renderMasonryPreview();
-      autosaveAlbum();
+      setCover(f);
     });
 
     item.addEventListener('dragstart', e => {
@@ -985,6 +1026,7 @@ async function renderMasonryPreview() {
   function makeItem(f) {
     const item = document.createElement('div');
     item.className = 'preview-item';
+    item.dataset.file = f;
 
     const img = document.createElement('img');
     img.src = thumbUrl(slug, f, 960);
@@ -997,6 +1039,11 @@ async function renderMasonryPreview() {
       badge.textContent = 'Cover';
       item.appendChild(badge);
     }
+
+    // Same gesture as the order strip above — set the cover from whichever grid
+    // you happen to be looking at.
+    item.title = f === cover ? 'Album cover' : 'Double-click to set as cover';
+    item.addEventListener('dblclick', () => setCover(f));
 
     return item;
   }
