@@ -4,7 +4,6 @@
   "framework": "astro",
   "headers": [
     {
-      "_comment": "Derivative filenames carry a content hash, so a changed photo gets a new URL and these can be cached forever. Same for the self-hosted fonts, whose filenames are stable by family/weight/subset.",
       "source": "/images/albums/:album/resized/:file",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
@@ -13,7 +12,6 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "_comment": "Display images and the profile photo keep their original filenames, so they can be replaced in place. A day at full speed, then a week of serving the cached copy while refreshing in the background. Paths are mutually exclusive with the rules above so precedence never matters.",
       "source": "/images/albums/:album/display/:file",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }]
     },

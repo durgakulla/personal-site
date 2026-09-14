@@ -31,8 +31,23 @@ Manage the background server with `astro dev stop`, `astro dev status`, and `ast
 
 Drop full-res originals in `public/images/albums/<slug>/originals/`, then run
 `npm run build` (or `node scripts/optimize-images.mjs`) to generate web-ready
-copies (max 2000px on the longest edge, 85% quality, EXIF preserved). `originals/` is gitignored;
-optimized files are committed.
+copies (max 1600px on the longest edge, 85% quality, camera EXIF preserved plus
+a copyright/creator stamp taken from `about.json`). `originals/` is gitignored;
+`display/` is committed, `resized/` is generated on every build.
+
+The 1600px cap is deliberate: `display/` is the largest file the site hands out,
+so it's also the largest file anyone can copy. Raising it mostly benefits
+whoever takes the photo.
+
+`resized/` holds AVIF and WebP derivatives at 480/960/1440px, referenced through
+`<picture>`. Their filenames carry a content hash, which is what lets
+`vercel.json` serve them `immutable` for a year — a changed photo gets a new
+URL. `display/` keeps stable filenames so a photo can be replaced in place, and
+gets a shorter max-age with `stale-while-revalidate`. `vercel.json` is strict
+JSON and cannot carry comments, hence this note.
+
+Changing any optimizer setting rebuilds every image: cache entries record the
+settings that produced them, so the first build after a change is slower.
 
 ## Documentation
 
