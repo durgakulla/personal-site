@@ -73,12 +73,12 @@ const logoSecondLine = logoRestWords.join(' ');
       "sameAs": socials.filter(s => !s.href.startsWith('mailto')).map(s => s.href),
     })} />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Barlow is self-hosted (see src/styles/global.css); no third-party
+         connection sits on the critical path any more. These two weights are
+         on every page above the fold — the wordmark at 800, the nav at 700 —
+         so start them before the CSS that references them has parsed. -->
+    <link rel="preload" href="/fonts/barlow-800-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/barlow-700-latin.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Apply theme before paint to prevent flash. Dark is the default; only an
          explicit "light" choice opts out. The choice is mirrored into a cookie,
          which (unlike localStorage) is shared across ports on the same host, so
