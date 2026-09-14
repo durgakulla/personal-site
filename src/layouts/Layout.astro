@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { getAlbumsMeta } from '../lib/albums';
+import type { Photo } from '../lib/albums';
 import { socialIcons } from '../lib/socialIcons';
 import socials from '../data/socials.json';
 import about from '../data/about.json';
@@ -11,6 +12,8 @@ interface Props {
   ogImage?: string;
   activeAlbum?: string;
   activePage?: string;
+  /** First image on the page, if it's above the fold — preloaded as the LCP candidate. */
+  lcpImage?: { photo: Photo; sizes: string };
 }
 
 const {
@@ -19,7 +22,16 @@ const {
   ogImage = '/images/profile.jpg',
   activeAlbum,
   activePage,
+  lcpImage,
 } = Astro.props;
+
+// The LCP image is already loading="eager" fetchpriority="high", but the parser
+// has to reach it first; preloading starts the fetch while <head> is still being
+// read. Only the best format is preloaded, never one per format: `type` makes a
+// browser skip a preload it can't decode, but one that supports both AVIF and
+// WebP would honour both links and fetch the photo twice. A browser without AVIF
+// simply ignores this and discovers its WebP the usual way — no worse than now.
+const lcpSource = lcpImage?.photo.sources[0];
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImageURL   = new URL(ogImage, Astro.site);
@@ -79,6 +91,17 @@ const logoSecondLine = logoRestWords.join(' ');
          so start them before the CSS that references them has parsed. -->
     <link rel="preload" href="/fonts/barlow-800-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/barlow-700-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+    {lcpSource && (
+      <link
+        rel="preload"
+        as="image"
+        type={lcpSource.type}
+        imagesrcset={lcpSource.srcset}
+        imagesizes={lcpImage!.sizes}
+        fetchpriority="high"
+      />
+    )}
     <!-- Apply theme before paint to prevent flash. Dark is the default; only an
          explicit "light" choice opts out. The choice is mirrored into a cookie,
          which (unlike localStorage) is shared across ports on the same host, so

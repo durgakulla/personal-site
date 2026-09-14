@@ -20,7 +20,10 @@ const albums = getAlbumSlugs().map(slug => {
 }).filter(album => album.cover);
 ---
 
-<Layout title={`${about.name} — Photography`}>
+<Layout
+  title={`${about.name} — Photography`}
+  lcpImage={albums[0]?.cover ? { photo: albums[0].cover, sizes: SIZES } : undefined}
+>
   <div class="px-6 md:px-8 py-10">
     {about.tagline && (
       <p class="text-stone-800 dark:text-stone-100 font-medium text-base md:text-lg leading-relaxed mb-3">

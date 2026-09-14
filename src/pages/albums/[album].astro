@@ -17,6 +17,10 @@ const dateParts = [month ? MONTHS[month - 1] : null, year ?? null].filter(Boolea
 const date = dateParts.length ? dateParts.join(' · ') : null;
 const cover = getAlbumCover(album);
 
+// Must match the `sizes` PhotoGrid puts on its <source> elements, or the
+// preload fetches a different candidate than the grid then uses.
+const PHOTO_SIZES = '(min-width: 1000px) 48vw, 100vw';
+
 const albumUrl = new URL(`/albums/${album}`, Astro.site);
 const imageGalleryJsonLd = {
   '@context': 'https://schema.org',
@@ -38,6 +42,7 @@ const imageGalleryJsonLd = {
   description={description ?? `${name} — photos by ${about.name}`}
   ogImage={cover?.src}
   activeAlbum={album}
+  lcpImage={photos[0] ? { photo: photos[0], sizes: photos[0].aspect === 'panorama' ? '100vw' : PHOTO_SIZES } : undefined}
 >
   <script type="application/ld+json" set:html={JSON.stringify(imageGalleryJsonLd)} />
   <div class="px-6 md:px-8 pt-6 md:pt-10 pb-10">
