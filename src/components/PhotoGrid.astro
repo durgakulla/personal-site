@@ -24,18 +24,25 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
       data-width={photo.width}
       data-height={photo.height}
     >
-      <img
-        src={photo.src}
-        srcset={photo.srcset}
-        sizes={photo.srcset ? (photo.aspect === 'panorama' ? '100vw' : SIZES) : undefined}
-        width={photo.width}
-        height={photo.height}
-        alt={photo.alt}
-        class="w-full h-auto block"
-        loading={i < 2 ? 'eager' : 'lazy'}
-        fetchpriority={i === 0 ? 'high' : undefined}
-        decoding="async"
-      />
+      <picture>
+        {photo.sources.map(source => (
+          <source
+            type={source.type}
+            srcset={source.srcset}
+            sizes={photo.aspect === 'panorama' ? '100vw' : SIZES}
+          />
+        ))}
+        <img
+          src={photo.src}
+          width={photo.width}
+          height={photo.height}
+          alt={photo.alt}
+          class="w-full h-auto block"
+          loading={i < 2 ? 'eager' : 'lazy'}
+          fetchpriority={i === 0 ? 'high' : undefined}
+          decoding="async"
+        />
+      </picture>
       {photo.exif && (
         <div
           class="absolute bottom-0 left-0 right-0 px-3 py-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300"

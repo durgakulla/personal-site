@@ -10,6 +10,13 @@ export { toDisplayName };
 
 export type Aspect = 'landscape' | 'portrait' | 'square' | 'panorama';
 
+/** One <source> in a <picture>: every derivative of a single format. */
+export interface ImageSource {
+  /** MIME type, best-first — the browser takes the first it can decode. */
+  type: string;
+  srcset: string;
+}
+
 export interface Photo {
   src: string;
   alt: string;
@@ -17,28 +24,55 @@ export interface Photo {
   /** Intrinsic pixel size of the full image — set on <img> to reserve layout. */
   width: number;
   height: number;
-  /** Responsive candidates (see scripts/optimize-images.mjs); undefined if none exist. */
-  srcset?: string;
+  /** AVIF then WebP candidates (see scripts/optimize-images.mjs); empty if none exist. */
+  sources: ImageSource[];
   exif?: string;
 }
 
-// Keep in sync with DERIV_WIDTHS in scripts/optimize-images.mjs.
-const DERIVATIVE_WIDTHS = [480, 960, 1440];
 const DISPLAY_DIR = 'display';
+const MIME: Record<string, string> = { avif: 'image/avif', webp: 'image/webp' };
 
-/** Build a srcset from whatever `resized/` derivatives exist on disk, plus the full image. */
-function buildSrcset(slug: string, file: string, fullWidth: number): string | undefined {
-  const resizedDir = join(ALBUMS_DIR, slug, 'resized');
-  const base = file.replace(/\.[^.]+$/, '');
-  const parts: string[] = [];
-  for (const w of DERIVATIVE_WIDTHS) {
-    if (w >= fullWidth) continue;
-    const f = `${base}-${w}w.webp`;
-    if (existsSync(join(resizedDir, f))) parts.push(`/images/albums/${slug}/resized/${f} ${w}w`);
+// Derivative filenames are <base>-<width>w-<hash>.<ext>. Matched from the right,
+// because a base name can itself contain dashes ("R0001997-edit1").
+const DERIVATIVE_RE = /^(.*)-(\d+)w-[0-9a-f]{8}\.(avif|webp)$/;
+
+// One readdir per album instead of an existsSync per candidate file.
+const resizedDirCache = new Map<string, string[]>();
+function listResized(slug: string): string[] {
+  let files = resizedDirCache.get(slug);
+  if (!files) {
+    const dir = join(ALBUMS_DIR, slug, 'resized');
+    files = existsSync(dir) ? readdirSync(dir) : [];
+    resizedDirCache.set(slug, files);
   }
-  if (!parts.length) return undefined;
-  parts.push(`/images/albums/${slug}/${DISPLAY_DIR}/${file} ${fullWidth}w`);
-  return parts.join(', ');
+  return files;
+}
+
+/**
+ * Collect the derivatives on disk for one photo, grouped into a <source> per
+ * format. The optimizer hashes the filenames so they can be cached forever,
+ * which means they can't be predicted from the base name — they're discovered.
+ */
+function buildSources(slug: string, file: string): ImageSource[] {
+  const base = file.replace(/\.[^.]+$/, '');
+  const byExt = new Map<string, string[]>();
+
+  for (const f of listResized(slug)) {
+    const m = DERIVATIVE_RE.exec(f);
+    if (!m || m[1] !== base) continue;
+    const [, , width, ext] = m;
+    if (!byExt.has(ext)) byExt.set(ext, []);
+    byExt.get(ext)!.push(`/images/albums/${slug}/resized/${f} ${width}w`);
+  }
+
+  // Order by the format list, not by whatever order readdir returned.
+  return Object.keys(MIME)
+    .filter(ext => byExt.has(ext))
+    .map(ext => ({ type: MIME[ext], srcset: byExt.get(ext)!.sort(byWidth).join(', ') }));
+}
+
+function byWidth(a: string, b: string): number {
+  return parseInt(a.split(' ').pop()!, 10) - parseInt(b.split(' ').pop()!, 10);
 }
 
 function formatExif(raw: Record<string, unknown> | undefined): string | undefined {
@@ -148,7 +182,7 @@ export async function getPhotosForAlbum(slug: string): Promise<Photo[]> {
       aspect: aspectFromDims(width, height),
       width,
       height,
-      srcset: buildSrcset(slug, file, width),
+      sources: buildSources(slug, file),
       exif: formatExif(raw),
     };
   }));
@@ -168,6 +202,6 @@ export function getAlbumCover(slug: string): Photo | null {
     aspect: aspectFromDims(width, height),
     width,
     height,
-    srcset: buildSrcset(slug, file, width),
+    sources: buildSources(slug, file),
   };
 }

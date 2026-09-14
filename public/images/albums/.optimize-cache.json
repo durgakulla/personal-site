@@ -1,154 +1,294 @@
 {
   "Hawaiʻi/halekalacraterlong.jpg": {
     "mtime": 1788161220172.3467,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/halekalasunrisepano.jpg": {
     "mtime": 1788131441544.5981,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/kilaueasteamvent.jpg": {
     "mtime": 1788656777343.349,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/milkywaymaunakea.jpg": {
     "mtime": 1788543338568.96,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/punaluublacksandbeach.jpg": {
     "mtime": 1788658383743.8726,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/rainbowfalls.jpg": {
     "mtime": 1788656279216.9912,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/thurstonlavatube.jpg": {
     "mtime": 1788657216669.4092,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/wailuafallshana.jpg": {
     "mtime": 1788660054768.559,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "Hawaiʻi/waipeovalleysunset.jpg": {
     "mtime": 1788657021367.2297,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "resized/Hawaiʻi/halekalacraterlong.jpg": {
-    "mtime": 1789335241745.6455,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367198713.9604,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "halekalacraterlong-480w-f8317834.avif",
+      "halekalacraterlong-480w-e0a5c4b4.webp",
+      "halekalacraterlong-960w-fe9d8d2d.avif",
+      "halekalacraterlong-960w-225ce9b0.webp",
+      "halekalacraterlong-1440w-079765a2.avif",
+      "halekalacraterlong-1440w-2ef06e5c.webp"
+    ]
   },
   "resized/Hawaiʻi/halekalasunrisepano.jpg": {
-    "mtime": 1789335241931.7527,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367198898.4355,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "halekalasunrisepano-480w-1826fdc2.avif",
+      "halekalasunrisepano-480w-e2acdf0a.webp",
+      "halekalasunrisepano-960w-faf3c860.avif",
+      "halekalasunrisepano-960w-6dbc536c.webp",
+      "halekalasunrisepano-1440w-f42d169e.avif",
+      "halekalasunrisepano-1440w-40d15bd9.webp"
+    ]
   },
   "resized/Hawaiʻi/kilaueasteamvent.jpg": {
-    "mtime": 1789335242252.3398,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367199221.0732,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "kilaueasteamvent-480w-ba75c47b.avif",
+      "kilaueasteamvent-480w-02f19a03.webp",
+      "kilaueasteamvent-960w-85ee0263.avif",
+      "kilaueasteamvent-960w-070e2f88.webp"
+    ]
   },
   "resized/Hawaiʻi/milkywaymaunakea.jpg": {
-    "mtime": 1789335242641.7214,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367199613.3457,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "milkywaymaunakea-480w-eb29fc7e.avif",
+      "milkywaymaunakea-480w-c0b04afe.webp",
+      "milkywaymaunakea-960w-d09e982e.avif",
+      "milkywaymaunakea-960w-bdb5085d.webp"
+    ]
   },
   "resized/Hawaiʻi/punaluublacksandbeach.jpg": {
-    "mtime": 1789335243420.9448,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367200394.8296,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "punaluublacksandbeach-480w-6e222d56.avif",
+      "punaluublacksandbeach-480w-b47282d4.webp",
+      "punaluublacksandbeach-960w-bf9ff5ba.avif",
+      "punaluublacksandbeach-960w-b166a20d.webp"
+    ]
   },
   "resized/Hawaiʻi/rainbowfalls.jpg": {
-    "mtime": 1789335243762.6118,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367200736.786,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "rainbowfalls-480w-a9fa8cc2.avif",
+      "rainbowfalls-480w-c469b6f9.webp",
+      "rainbowfalls-960w-29698eb9.avif",
+      "rainbowfalls-960w-0a37d244.webp",
+      "rainbowfalls-1440w-a9bb2b0b.avif",
+      "rainbowfalls-1440w-8441d2d8.webp"
+    ]
   },
   "resized/Hawaiʻi/thurstonlavatube.jpg": {
-    "mtime": 1789335244364.1301,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367201335.2495,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "thurstonlavatube-480w-18bb8e10.avif",
+      "thurstonlavatube-480w-ea9f56ca.webp",
+      "thurstonlavatube-960w-06564bc3.avif",
+      "thurstonlavatube-960w-3d61c898.webp",
+      "thurstonlavatube-1440w-be557e0f.avif",
+      "thurstonlavatube-1440w-351c2db0.webp"
+    ]
   },
   "resized/Hawaiʻi/wailuafallshana.jpg": {
-    "mtime": 1789335245060.5193,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367202048.4666,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "wailuafallshana-480w-91b1f48d.avif",
+      "wailuafallshana-480w-c2ea2521.webp",
+      "wailuafallshana-960w-e20d440c.avif",
+      "wailuafallshana-960w-81515359.webp"
+    ]
   },
   "resized/Hawaiʻi/waipeovalleysunset.jpg": {
-    "mtime": 1789335245584.354,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367202573.4377,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "waipeovalleysunset-480w-ea3938aa.avif",
+      "waipeovalleysunset-480w-b5547923.webp",
+      "waipeovalleysunset-960w-2112c9a1.avif",
+      "waipeovalleysunset-960w-f355e087.webp",
+      "waipeovalleysunset-1440w-e50ddc86.avif",
+      "waipeovalleysunset-1440w-3177fc58.webp"
+    ]
   },
   "Hawaiʻi/nene.jpg": {
     "mtime": 1788836221209.0308,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "resized/Hawaiʻi/nene.jpg": {
-    "mtime": 1789335243012.2537,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367199982.5535,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "nene-480w-945d1e74.avif",
+      "nene-480w-6f2cdb45.webp",
+      "nene-960w-5c6cf199.avif",
+      "nene-960w-50301d12.webp"
+    ]
   },
   "Hawaiʻi/gecko.jpg": {
     "mtime": 1788836383887.0903,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "resized/Hawaiʻi/gecko.jpg": {
-    "mtime": 1789335241333.2666,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367198299.778,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "gecko-480w-f0634f13.avif",
+      "gecko-480w-a5939a40.webp",
+      "gecko-960w-f24dc83b.avif",
+      "gecko-960w-c3c35965.webp",
+      "gecko-1440w-d717394f.avif",
+      "gecko-1440w-5540d24f.webp"
+    ]
   },
   "Hawaiʻi/muscovyduck.jpg": {
     "mtime": 1788836656143.5586,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "resized/Hawaiʻi/muscovyduck.jpg": {
-    "mtime": 1789335242888.8525,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367199861.2021,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "muscovyduck-480w-fd77da06.avif",
+      "muscovyduck-480w-25931f6a.webp",
+      "muscovyduck-960w-61e5e084.avif",
+      "muscovyduck-960w-15ebd90f.webp"
+    ]
   },
   "san-francisco/R0001997-edit1.jpg": {
     "mtime": 1788854716426.6155,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "san-francisco/R0002006-edit2.jpg": {
     "mtime": 1788854716500.4375,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "san-francisco/R0002008-edit3.jpg": {
     "mtime": 1788854716505.1074,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "san-francisco/R0002013-edit4.jpg": {
     "mtime": 1788854716447.7043,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "san-francisco/R0002047-edit5.jpg": {
     "mtime": 1788854716524.5935,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "san-francisco/R0002053-edit6.jpg": {
     "mtime": 1788854716472.1204,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "san-francisco/R0002055-edit7.jpg": {
     "mtime": 1788854716401.171,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
   },
   "resized/san-francisco/R0001997-edit1.jpg": {
-    "mtime": 1789335245877.6443,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367202865.6006,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0001997-edit1-480w-c8904dc6.avif",
+      "R0001997-edit1-480w-6c894bdf.webp",
+      "R0001997-edit1-960w-9d4c5f3f.avif",
+      "R0001997-edit1-960w-6889dfa3.webp",
+      "R0001997-edit1-1440w-3c56371f.avif",
+      "R0001997-edit1-1440w-f3a85fe3.webp"
+    ]
   },
   "resized/san-francisco/R0002006-edit2.jpg": {
-    "mtime": 1789335246230.7268,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367203218.2957,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0002006-edit2-480w-3c840f06.avif",
+      "R0002006-edit2-480w-b42402f0.webp",
+      "R0002006-edit2-960w-f8ffa62b.avif",
+      "R0002006-edit2-960w-f85cdfca.webp",
+      "R0002006-edit2-1440w-874abb55.avif",
+      "R0002006-edit2-1440w-0725c686.webp"
+    ]
   },
   "resized/san-francisco/R0002008-edit3.jpg": {
-    "mtime": 1789335246558.8184,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367203545.604,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0002008-edit3-480w-47fb7678.avif",
+      "R0002008-edit3-480w-c25e7bb1.webp",
+      "R0002008-edit3-960w-948c18cb.avif",
+      "R0002008-edit3-960w-1dc0a4bc.webp",
+      "R0002008-edit3-1440w-1986959d.avif",
+      "R0002008-edit3-1440w-08ddd81b.webp"
+    ]
   },
   "resized/san-francisco/R0002013-edit4.jpg": {
-    "mtime": 1789335246818.545,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367203804.7979,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0002013-edit4-480w-72b7f3c5.avif",
+      "R0002013-edit4-480w-05002e67.webp",
+      "R0002013-edit4-960w-c97aa3b9.avif",
+      "R0002013-edit4-960w-541d2dad.webp",
+      "R0002013-edit4-1440w-8feb7c06.avif",
+      "R0002013-edit4-1440w-bee7a764.webp"
+    ]
   },
   "resized/san-francisco/R0002047-edit5.jpg": {
-    "mtime": 1789335247115.1885,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367204102.717,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0002047-edit5-480w-d99e3693.avif",
+      "R0002047-edit5-480w-04b48f01.webp",
+      "R0002047-edit5-960w-a8ba2cd9.avif",
+      "R0002047-edit5-960w-a6950703.webp",
+      "R0002047-edit5-1440w-4e05f231.avif",
+      "R0002047-edit5-1440w-dca35828.webp"
+    ]
   },
   "resized/san-francisco/R0002053-edit6.jpg": {
-    "mtime": 1789335247393.4136,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367204378.0825,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0002053-edit6-480w-cd6e4dff.avif",
+      "R0002053-edit6-480w-4ca4b6ff.webp",
+      "R0002053-edit6-960w-5b4be72a.avif",
+      "R0002053-edit6-960w-59c0d037.webp",
+      "R0002053-edit6-1440w-7a07077e.avif",
+      "R0002053-edit6-1440w-ef275919.webp"
+    ]
   },
   "resized/san-francisco/R0002055-edit7.jpg": {
-    "mtime": 1789335247604.4092,
-    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"stamp\":\"Durga Kullakanda\"}"
+    "mtime": 1789367204587.7021,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "R0002055-edit7-480w-1de2d437.avif",
+      "R0002055-edit7-480w-18ca4fb0.webp",
+      "R0002055-edit7-960w-b4b201bb.avif",
+      "R0002055-edit7-960w-4caa39b5.webp",
+      "R0002055-edit7-1440w-a71c5eb8.avif",
+      "R0002055-edit7-1440w-eab6edb9.webp"
+    ]
   }
 }

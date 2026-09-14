@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { createHash } from 'crypto';
 
 const ALBUMS_DIR = 'public/images/albums';
 const CACHE_FILE = 'public/images/albums/.optimize-cache.json';
@@ -29,12 +30,25 @@ const DERIV_WIDTHS   = [480, 960, 1440];
 const DISPLAY_DIR    = 'display';
 const DERIV_DIR      = 'resized';
 const DERIV_QUALITY  = 80;
+// AVIF at q55 lands ~40% under webp q80 at visually matched quality for these
+// photographs (measured, not assumed). effort 4 is sharp's default; 6 buys ~1%
+// more for roughly 3x the encode time.
+const AVIF_QUALITY   = 55;
+const AVIF_EFFORT    = 4;
+
+// Ordered best-first: the browser takes the first <source> whose type it can
+// decode, so AVIF must precede WebP.
+const DERIV_FORMATS = [
+  { ext: 'avif', encode: p => p.avif({ quality: AVIF_QUALITY, effort: AVIF_EFFORT }) },
+  { ext: 'webp', encode: p => p.webp({ quality: DERIV_QUALITY }) },
+];
 
 // The cache keys on the source file's mtime, so changing a setting below would
 // otherwise leave every already-rendered file untouched. Fold the settings that
 // affect output into the entry and rebuild when they differ.
 const RENDER_KEY = JSON.stringify({
-  MAX_DIMENSION, QUALITY, DERIV_WIDTHS, DERIV_QUALITY, stamp: CREATOR,
+  MAX_DIMENSION, QUALITY, DERIV_WIDTHS, DERIV_QUALITY, AVIF_QUALITY, AVIF_EFFORT,
+  formats: DERIV_FORMATS.map(f => f.ext), stamp: CREATOR,
 });
 
 let cache = {};
@@ -101,6 +115,10 @@ for (const slug of slugs) {
 // ── Responsive derivatives ───────────────────────────────────────────────────
 // Runs for every album, over the display/ images, so albums whose images were
 // placed directly in display/ (bypassing originals/) are covered too.
+// Matches what this script writes: <base>-<width>w-<hash>.<ext>. Parsed from
+// the right, because a base name can itself contain dashes.
+const DERIV_NAME_RE = /-\d+w-[0-9a-f]{8}\.(?:avif|webp)$/;
+
 let derivMade = 0, derivFresh = 0, derivPruned = 0;
 
 for (const slug of slugs) {
@@ -121,22 +139,27 @@ for (const slug of slugs) {
     const meta    = await sharp(srcPath).metadata();
     const srcW    = meta.width ?? 0;
     const targets = DERIV_WIDTHS.filter(w => w < srcW);
-    const outPaths = targets.map(w => join(outDir, `${base}-${w}w.webp`));
 
-    if (isFresh(key, mtimeMs) && outPaths.every(existsSync)) {
+    // Filenames carry a content hash, so a changed photo gets a new URL and the
+    // old one can be cached forever. Which means we can't predict the names —
+    // the cache entry records what was actually written.
+    const known = cache[key]?.outputs ?? [];
+    if (isFresh(key, mtimeMs) && known.length && known.every(f => existsSync(join(outDir, f)))) {
       derivFresh++;
       continue;
     }
 
     if (targets.length && !existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
+    const written = [];
+
     for (const w of targets) {
-      // Resize to raw pixels first. Encoding straight from the display JPEG
-      // drags its ~11KB embedded thumbnail into every derivative — 40% of a
-      // 480w file — and withExif replaces IFD0 without dropping it. Raw carries
-      // no metadata at all, so the re-encode writes exactly the stamp: same
-      // pixels, 250 bytes of EXIF instead of 11,600. Still a single webp encode,
-      // so there's no generational quality loss.
+      // Resize to raw pixels once, then encode each format from it. Going
+      // straight from the display JPEG drags its ~11KB embedded thumbnail into
+      // every derivative — 40% of a 480w file — and withExif replaces IFD0
+      // without dropping it. Raw carries no metadata at all, so each encode
+      // writes exactly the stamp: same pixels, 250 bytes of EXIF instead of
+      // 11,600, and still only one encode per output file.
       const { data, info } = await sharp(srcPath)
         .rotate()                                   // bake in EXIF orientation
         .resize({ width: w, withoutEnlargement: true })
@@ -144,18 +167,23 @@ for (const slug of slugs) {
         .raw()
         .toBuffer({ resolveWithObject: true });
 
-      let pipeline = sharp(data, {
-        raw: { width: info.width, height: info.height, channels: info.channels },
-      });
-      // These are what most visitors actually receive, and they used to ship
-      // with no metadata at all — so ownership travelled with nothing.
-      if (EXIF_STAMP) pipeline = pipeline.withExif(EXIF_STAMP);
+      for (const { ext, encode } of DERIV_FORMATS) {
+        let pipeline = sharp(data, {
+          raw: { width: info.width, height: info.height, channels: info.channels },
+        });
+        // These are what most visitors actually receive, and they used to ship
+        // with no metadata at all — so ownership travelled with nothing.
+        if (EXIF_STAMP) pipeline = pipeline.withExif(EXIF_STAMP);
 
-      const buf = await pipeline.webp({ quality: DERIV_QUALITY }).toBuffer();
-      writeFileSync(join(outDir, `${base}-${w}w.webp`), buf);
+        const buf  = await encode(pipeline).toBuffer();
+        const hash = createHash('sha256').update(buf).digest('hex').slice(0, 8);
+        const name = `${base}-${w}w-${hash}.${ext}`;
+        writeFileSync(join(outDir, name), buf);
+        written.push(name);
+      }
     }
 
-    cache[key] = { mtime: mtimeMs, render: RENDER_KEY };
+    cache[key] = { mtime: mtimeMs, render: RENDER_KEY, outputs: written };
     if (targets.length) derivMade++;
   }
 
@@ -166,16 +194,10 @@ for (const slug of slugs) {
   // cap. buildSrcset() won't reference them, which is exactly why they'd go
   // unnoticed.
   if (existsSync(outDir)) {
-    const wanted = new Set();
-    for (const file of files) {
-      const base   = file.replace(/\.[^.]+$/, '');
-      const srcW   = (await sharp(join(displayDir, file)).metadata()).width ?? 0;
-      for (const w of DERIV_WIDTHS.filter(w => w < srcW)) wanted.add(`${base}-${w}w.webp`);
-    }
+    const wanted = new Set(files.flatMap(f => cache[`resized/${slug}/${f}`]?.outputs ?? []));
     for (const f of readdirSync(outDir)) {
-      if (!/-\d+w\.webp$/.test(f) || wanted.has(f)) continue;
+      if (!DERIV_NAME_RE.test(f) || wanted.has(f)) continue;
       unlinkSync(join(outDir, f));
-      delete cache[`resized/${slug}/${f}`];
       derivPruned++;
       console.log(`  ✗ pruned stale derivative ${slug}/${f}`);
     }

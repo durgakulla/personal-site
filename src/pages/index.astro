@@ -34,16 +34,19 @@ const albums = getAlbumSlugs().map(slug => {
           class="index-grid-item group block overflow-hidden relative aspect-[4/3]"
         >
           {album.cover && (
-            <img
-              src={album.cover.src}
-              srcset={album.cover.srcset}
-              sizes={SIZES}
-              alt={album.cover.alt}
-              class="w-full h-full object-cover block transition-transform duration-500 ease-out group-hover:scale-105"
-              loading={i === 0 ? 'eager' : 'lazy'}
-              fetchpriority={i === 0 ? 'high' : undefined}
-              decoding="async"
-            />
+            <picture>
+              {album.cover.sources.map(source => (
+                <source type={source.type} srcset={source.srcset} sizes={SIZES} />
+              ))}
+              <img
+                src={album.cover.src}
+                alt={album.cover.alt}
+                class="w-full h-full object-cover block transition-transform duration-500 ease-out group-hover:scale-105"
+                loading={i === 0 ? 'eager' : 'lazy'}
+                fetchpriority={i === 0 ? 'high' : undefined}
+                decoding="async"
+              />
+            </picture>
           )}
           <div class="absolute inset-0 bg-black/35 group-hover:bg-black/50 transition-colors duration-300 flex flex-col items-center justify-center text-center px-4">
             <p class="text-white font-extrabold uppercase tracking-tight leading-[0.88] text-balance break-words max-w-full text-[8vw] md:text-[3.5vw] lg:text-[2.8vw]">
