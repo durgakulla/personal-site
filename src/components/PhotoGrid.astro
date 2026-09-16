@@ -17,6 +17,9 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   {photos.map((photo, i) => (
     <div
       class="masonry-item group cursor-pointer overflow-hidden relative"
+      role="button"
+      tabindex="0"
+      aria-label={`View photo ${i + 1} of ${photos.length}`}
       data-lightbox-index={i}
       data-aspect={photo.aspect}
       data-exif={photo.exif ?? ''}
@@ -121,6 +124,12 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     </svg>
   </button>
 
+  <!-- Shown only once a full-res fetch outlives LOADING_AFTER_MS, so a slow
+       connection reads as "loading" instead of as a black screen. Plain text
+       rather than a spinner: the global prefers-reduced-motion rule collapses
+       every animation to 0.01ms, which would leave a ring jittering in place. -->
+  <p id="lb-loading" role="status" class="hidden absolute inset-0 z-10 items-center justify-center text-white/70 text-xs tracking-widest uppercase pointer-events-none">Loading&hellip;</p>
+
   <!-- Counter (always visible, no gradient) -->
   <p id="lb-counter" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white text-xs tracking-widest"></p>
 
@@ -204,11 +213,22 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   const lbExifBar  = document.getElementById('lb-exif-bar')!;
   const lbZoom     = document.getElementById('lb-zoom')!;
   const lbClose    = document.getElementById('lb-close')!;
+  const lbLoading  = document.getElementById('lb-loading')!;
   const total      = document.querySelectorAll('[data-lightbox-index]').length;
   let current      = 0;
   let sourceThumb: HTMLImageElement | null = null;
   let isDismissing = false;
   let isAnimating  = false;
+  // Set while a touch gesture is in flight so the trailing synthetic click a
+  // swipe can leave behind doesn't get read as a backdrop tap.
+  let touchMoved   = false;
+
+  const isClosed = () => lightbox.classList.contains('pointer-events-none');
+
+  function setLoading(on: boolean) {
+    lbLoading.classList.toggle('hidden', !on);
+    lbLoading.classList.toggle('flex', on);
+  }
   // Bumped on every navigation so a slow image load can't land after the user
   // has already moved on and overwrite the photo they're now looking at.
   let navToken     = 0;
@@ -340,21 +360,65 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   // full-res image to finish loading before fading it in, so there's never a
   // low-res-then-swap size jump to begin with (unlike the slide/peek path,
   // this doesn't show anything until the real image is ready).
+  //
+  // That wait used to be unbounded. A stalled fetch left the viewer on a black
+  // screen with nothing to explain it, and because `isAnimating` was only
+  // cleared on load, the arrow keys stopped responding too — the one escape
+  // was Escape. Two timers bound it now: one puts "Loading…" on screen, a
+  // later one hands navigation back. The fade itself still waits for the real
+  // image, so on a fast connection this behaves exactly as it did.
+  const LOADING_AFTER_MS = 250;
+  const STALL_AFTER_MS   = 1200;
+
   function fadeToPhoto(direction: -1 | 1) {
     if (isAnimating) return;
     isAnimating = true;
-    navToken++;
+    const token = ++navToken;
     resetZoom();
     lbImg.style.transition = 'opacity 0.15s ease';
     lbImg.style.opacity = '0';
     setTimeout(() => {
+      if (token !== navToken) return;   // opened/swiped elsewhere mid-fade
       current = ((current + direction) % total + total) % total;
       const fullSrc = getTile(current).dataset.full;
+
+      let settled = false;
+      let swapped = false;
+      let loadingTimer: ReturnType<typeof setTimeout>;
+      let stallTimer: ReturnType<typeof setTimeout>;
+
       const reveal = () => {
-        updateSlots();
-        lbImg.style.opacity = '1';
+        if (settled || token !== navToken) return;
+        settled = true;
+        clearTimeout(loadingTimer);
+        clearTimeout(stallTimer);
+        setLoading(false);
         isAnimating = false;
+        // Closed while the fetch was still in flight. updateSlots ends in
+        // updateChrome, which re-locks body scroll — running it against a
+        // dismissed lightbox would leave the page unscrollable with nothing
+        // on screen to explain why.
+        if (isClosed()) return;
+        if (!swapped) updateSlots();
+        lbImg.style.opacity = '1';
       };
+
+      loadingTimer = setTimeout(() => {
+        if (!settled && token === navToken) setLoading(true);
+      }, LOADING_AFTER_MS);
+
+      // Past this point the photo is slow enough that holding the lightbox
+      // shut costs more than the tidy crossfade buys. Point the chrome and the
+      // <img> at the new photo — still faded out, still saying "Loading…" —
+      // and let the viewer navigate on or close while it finishes.
+      stallTimer = setTimeout(() => {
+        if (settled || token !== navToken) return;
+        isAnimating = false;
+        if (isClosed()) return;
+        swapped = true;
+        updateSlots();
+      }, STALL_AFTER_MS);
+
       if (fullSrc) {
         const preload = new Image();
         preload.onload = reveal;
@@ -398,10 +462,11 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
         snapped = true;
         lbImg.onload = null;
         lbImg.onerror = null;
+        isAnimating = false;
+        if (isClosed()) return;   // same body-scroll trap as fadeToPhoto's reveal
         updateNeighborPanels();
         updateChrome();
         snapTrackToCenter();
-        isAnimating = false;
 
         // Upgrade to the full-res file now that we're settled. It's the same
         // photo, so whenever that swap lands there's nothing to flash.
@@ -433,6 +498,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     lbImg.onerror = null;
     lbImg.style.transition = '';
     lbImg.style.opacity = '1';
+    setLoading(false);
     updateSlots();
     snapTrackToCenter();
 
@@ -460,18 +526,30 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     }
   }
 
+  // Hand the keyboard back to the photo the viewer ended on rather than the
+  // one they opened — it's also where updateChrome just scrolled the grid to,
+  // so focus and viewport agree. preventScroll because that scroll already
+  // happened. Mouse users see nothing: :focus-visible won't match a
+  // programmatic focus that follows a click.
+  function restoreFocusToCurrent() {
+    getTile(current).focus({ preventScroll: true });
+  }
+
   function closeLightbox() {
+    setLoading(false);
     lightbox.classList.add('opacity-0', 'pointer-events-none');
     // inert keeps the close/prev/next buttons out of the tab order and out of
     // the accessibility tree while the lightbox is hidden behind opacity-0.
     lightbox.setAttribute('inert', '');
     document.body.style.overflow = '';
     resetZoom();
+    restoreFocusToCurrent();
   }
 
   function dismissToSource() {
     if (isDismissing || lightbox.classList.contains('pointer-events-none')) return;
     isDismissing = true;
+    setLoading(false);
     if (!sourceThumb) {
       closeLightbox();
       isDismissing = false;
@@ -494,6 +572,7 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
       lbZoom.style.opacity    = '1';
       requestAnimationFrame(() => { lbZoom.style.transition = ''; });
       resetZoom();
+      restoreFocusToCurrent();
       isDismissing = false;
     }, 350);
   }
@@ -501,16 +580,31 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
   // ── Tile clicks ───────────────────────────────────────────────────────────────
   document.querySelectorAll<HTMLElement>('[data-lightbox-index]').forEach(tile => {
     tile.addEventListener('click', () => openLightbox(Number(tile.dataset.lightboxIndex), true));
+    // The tiles are divs carrying role="button", so Enter and Space have to be
+    // wired by hand. Without this the grid had no keyboard entry point at all:
+    // Tab walked straight past every photo and the lightbox was unreachable
+    // without a pointer.
+    tile.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();     // Space would otherwise scroll the page
+      openLightbox(Number(tile.dataset.lightboxIndex), true);
+    });
   });
 
   // ── Buttons / keyboard ────────────────────────────────────────────────────────
   lbClose.addEventListener('click', closeLightbox);
   document.getElementById('lb-prev')!.addEventListener('click', () => fadeToPhoto(-1));
   document.getElementById('lb-next')!.addEventListener('click', () => fadeToPhoto(1));
+  // Clicking the backdrop dismisses. It used to navigate — left half back,
+  // right half forward — which quietly ate a photo the first time anyone tried
+  // the near-universal "click outside the image to close". Navigation keeps the
+  // arrow buttons, the arrow keys, and the swipe on touch.
   lightbox.addEventListener('click', e => {
     if ((e.target as HTMLElement).closest('button') || e.target === lbImg) return;
-    if ((e as MouseEvent).clientX < window.innerWidth / 2) fadeToPhoto(-1);
-    else fadeToPhoto(1);
+    // A swipe can leave a synthetic click behind it; without this the photo
+    // would slide and then immediately close.
+    if (touchMoved) { touchMoved = false; return; }
+    dismissToSource();
   });
   document.addEventListener('keydown', e => {
     if (lightbox.classList.contains('pointer-events-none')) return;
@@ -584,6 +678,10 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
     Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 
   lightbox.addEventListener('touchstart', e => {
+    // Reset unconditionally, not just on the single-finger path: a pinch that
+    // ends without a synthetic click would otherwise leave this true and eat
+    // the next genuine backdrop tap.
+    touchMoved = false;
     if (e.touches.length === 2) {
       pinching  = true;
       pinchDist = twoFingerDist(e.touches);
@@ -598,6 +696,12 @@ const SIZES = '(min-width: 1000px) 48vw, 100vw';
 
   lightbox.addEventListener('touchmove', e => {
     if (lightbox.classList.contains('pointer-events-none')) return;
+    if (e.touches.length > 1) {
+      touchMoved = true;
+    } else if (Math.abs(e.touches[0].clientX - touchStartX) > 10 ||
+               Math.abs(e.touches[0].clientY - touchStartY) > 10) {
+      touchMoved = true;
+    }
     if (pinching && e.touches.length === 2) {
       e.preventDefault();
       const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;

@@ -139,6 +139,22 @@
   }
 }
 
+/* Keyboard focus. Nothing in the UI defined one, so the only indicator was the
+   browser default — which is near-invisible against the stone-on-stone nav
+   links and against the lightbox's black chrome. One ring, borrowed from the
+   wordmark palette, reads on white, on stone-950 and on black alike.
+   :focus-visible rather than :focus, so it never shows up on a mouse click. */
+:focus-visible {
+  outline: 2px solid #c2542f;
+  outline-offset: 2px;
+}
+
+/* The photo tiles and album covers clip their contents, but an element's own
+   outline is drawn outside its border box and isn't clipped by its own
+   overflow — so the ring lands in the 10px grid gap, against the page
+   background, where its contrast is known. Drawing it inset instead would put
+   it over whatever the photo happens to show at that edge. */
+
 .masonry {
   display: flex;
   flex-direction: column;
