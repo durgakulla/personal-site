@@ -290,5 +290,151 @@
       "R0002055-edit7-1440w-a71c5eb8.avif",
       "R0002055-edit7-1440w-eab6edb9.webp"
     ]
+  },
+  "colombia-2025/DSCF3945.jpeg": {
+    "mtime": 1789590744453.8867,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF3957.jpeg": {
+    "mtime": 1789590744462.0647,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF3959.jpeg": {
+    "mtime": 1789590744452.4814,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF4013.jpeg": {
+    "mtime": 1789590744438.551,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF4041 (1)-edit65.jpg": {
+    "mtime": 1789590744444.661,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF4057.jpeg": {
+    "mtime": 1789590744426.1838,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF4081.jpeg": {
+    "mtime": 1789590744406.802,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF4112.jpeg": {
+    "mtime": 1789590744401.4429,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/DSCF4115.jpeg": {
+    "mtime": 1789590744393.867,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "colombia-2025/IMG_2281.jpeg": {
+    "mtime": 1789590744437.4688,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "resized/colombia-2025/DSCF3945.jpeg": {
+    "mtime": 1789590744924.836,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF3945-480w-48b84721.avif",
+      "DSCF3945-480w-17aa7f8c.webp",
+      "DSCF3945-960w-fb30dd27.avif",
+      "DSCF3945-960w-299b6c32.webp",
+      "DSCF3945-1440w-b727a560.avif",
+      "DSCF3945-1440w-4e27f514.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF3957.jpeg": {
+    "mtime": 1789590745179.154,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF3957-480w-b40ea7a5.avif",
+      "DSCF3957-480w-44fee847.webp",
+      "DSCF3957-960w-37656844.avif",
+      "DSCF3957-960w-060b37c4.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF3959.jpeg": {
+    "mtime": 1789590745381.9746,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF3959-480w-58371b07.avif",
+      "DSCF3959-480w-91121217.webp",
+      "DSCF3959-960w-8a569439.avif",
+      "DSCF3959-960w-1e4b434e.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF4013.jpeg": {
+    "mtime": 1789590745603.7207,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF4013-480w-a23d23e4.avif",
+      "DSCF4013-480w-802682b9.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF4041 (1)-edit65.jpg": {
+    "mtime": 1789590745957.4736,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF4041 (1)-edit65-480w-8cf168e7.avif",
+      "DSCF4041 (1)-edit65-480w-7c0b3aca.webp",
+      "DSCF4041 (1)-edit65-960w-33513956.avif",
+      "DSCF4041 (1)-edit65-960w-c9dcb8b5.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF4057.jpeg": {
+    "mtime": 1789590746151.7131,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF4057-480w-4a0027aa.avif",
+      "DSCF4057-480w-f804fd14.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF4081.jpeg": {
+    "mtime": 1789590746397.1646,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF4081-480w-668f8099.avif",
+      "DSCF4081-480w-2a33968f.webp",
+      "DSCF4081-960w-40d698d4.avif",
+      "DSCF4081-960w-86787343.webp",
+      "DSCF4081-1440w-bccce26e.avif",
+      "DSCF4081-1440w-ea0f4421.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF4112.jpeg": {
+    "mtime": 1789590746672.1858,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF4112-480w-f50fde5a.avif",
+      "DSCF4112-480w-36ac3e58.webp",
+      "DSCF4112-960w-7ead6160.avif",
+      "DSCF4112-960w-0950e010.webp",
+      "DSCF4112-1440w-fc26f6dc.avif",
+      "DSCF4112-1440w-d48a3d26.webp"
+    ]
+  },
+  "resized/colombia-2025/DSCF4115.jpeg": {
+    "mtime": 1789590746822.9922,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSCF4115-480w-578302ca.avif",
+      "DSCF4115-480w-8e2b2743.webp",
+      "DSCF4115-960w-0ec7ef78.avif",
+      "DSCF4115-960w-2ebe2fb4.webp",
+      "DSCF4115-1440w-cc4eb0c1.avif",
+      "DSCF4115-1440w-5694e8ad.webp"
+    ]
+  },
+  "resized/colombia-2025/IMG_2281.jpeg": {
+    "mtime": 1789590747390.496,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "IMG_2281-480w-ce5170ce.avif",
+      "IMG_2281-480w-3bf901f3.webp",
+      "IMG_2281-960w-0b778957.avif",
+      "IMG_2281-960w-18376523.webp",
+      "IMG_2281-1440w-5119e038.avif",
+      "IMG_2281-1440w-e1b5b2e3.webp"
+    ]
   }
 }
