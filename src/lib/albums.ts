@@ -75,13 +75,40 @@ function byWidth(a: string, b: string): number {
   return parseInt(a.split(' ').pop()!, 10) - parseInt(b.split(' ').pop()!, 10);
 }
 
+// Model codes no one would recognise, by the name the camera is sold under.
+// Complete names — the brand isn't prefixed to these.
+const CAMERA_MODELS: Record<string, string> = { 'ILCE-7M5': 'Sony A7V' };
+
+// EXIF Make is a shouty manufacturer string ("FUJIFILM", "RICOH IMAGING
+// COMPANY, LTD."), so the brand is taken from its first word. Title-casing that
+// gets most of them right; these are the exceptions. An empty string means the
+// model already names itself ("iPhone 16 Pro") and wants no brand in front.
+const CAMERA_MAKES: Record<string, string> = { APPLE: '', DJI: 'DJI', GOPRO: 'GoPro' };
+
+/**
+ * "Fujifilm X-T3" from Make "FUJIFILM" and Model "X-T3" — a bare body code
+ * doesn't say what it came off. Models that already lead with the brand are
+ * re-cased rather than repeated, so "RICOH GR IV" reads "Ricoh GR IV".
+ */
+function cameraName(make: unknown, model: unknown): string {
+  const name = String(model).trim();
+  if (CAMERA_MODELS[name]) return CAMERA_MODELS[name];
+
+  const word = String(make ?? '').trim().split(/[\s,]+/)[0] ?? '';
+  if (!word) return name;
+  const brand = CAMERA_MAKES[word.toUpperCase()]
+    ?? word[0].toUpperCase() + word.slice(1).toLowerCase();
+
+  const rest = name.toLowerCase().startsWith(word.toLowerCase())
+    ? name.slice(word.length).trim()
+    : name;
+  return `${brand} ${rest}`.trim();
+}
+
 function formatExif(raw: Record<string, unknown> | undefined): string | undefined {
   if (!raw) return undefined;
   const parts: string[] = [];
-  if (raw.Model) {
-    const model = String(raw.Model).trim();
-    parts.push(model === 'ILCE-7M5' ? 'Sony A7V' : model);
-  }
+  if (raw.Model) parts.push(cameraName(raw.Make, raw.Model));
   if (raw.FNumber) parts.push(`f/${Number(raw.FNumber).toFixed(1)}`);
   if (raw.ExposureTime) {
     const t = Number(raw.ExposureTime);
