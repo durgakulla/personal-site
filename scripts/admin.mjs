@@ -56,6 +56,29 @@ function saveAlbumOrder(order) {
   log(`Saved album order (${order.length})`);
 }
 
+// Derivative filenames are <base>-<width>w-<hash>.<ext> (see
+// scripts/optimize-images.mjs). Matched from the right, because a base name can
+// itself contain dashes.
+const DERIVATIVE_RE = /^(.*)-(\d+)w-[0-9a-f]{8}\.(avif|webp)$/;
+
+// The content hash means the browser can't build a derivative's URL from the
+// photo's name, so the editor is told which ones exist: { <photo>: { <width>:
+// <filename> } }. WebP only — one URL per width is all a thumbnail needs.
+function getThumbs(slug, photos) {
+  const dir = join(ALBUMS_DIR, slug, 'resized');
+  if (!existsSync(dir)) return {};
+  const byBase = new Map(photos.map(f => [f.replace(/\.[^.]+$/, ''), f]));
+  const thumbs = {};
+  for (const name of readdirSync(dir)) {
+    const m = DERIVATIVE_RE.exec(name);
+    if (!m || m[3] !== 'webp') continue;
+    const photo = byBase.get(m[1]);
+    if (!photo) continue;
+    (thumbs[photo] ??= {})[m[2]] = name;
+  }
+  return thumbs;
+}
+
 function getAlbums() {
   const order = getAlbumOrder();
   const slugs = readdirSync(ALBUMS_DIR)
@@ -72,7 +95,7 @@ function getAlbums() {
     const photos = existsSync(displayDir)
       ? readdirSync(displayDir).filter(f => IMAGE_RE.test(f) && !f.startsWith('.')).sort()
       : [];
-    return { slug, info, photos };
+    return { slug, info, photos, thumbs: getThumbs(slug, photos) };
   });
 }
 
@@ -498,10 +521,17 @@ import { aspectFromRatio, toDisplayName, effectiveCover, planMasonry } from '/la
 
 let albums = [], currentAlbum = null, currentView = null, dragSrc = null, aboutData = {}, socialsData = [];
 function photoUrl(slug, f) { return '/albums/' + slug + '/display/' + f; }
-// Smallest responsive derivative — used for thumbnails so we don't pull the
-// full-size display image just to render a tiny preview. Falls back to the
-// full image (via onerror) when no derivative exists for a file.
-function thumbUrl(slug, f, width) { return '/albums/' + slug + '/resized/' + f.replace(/\.[^.]+$/, '') + '-' + width + 'w.webp'; }
+// Smallest responsive derivative at or above the width we need — so a tiny
+// preview doesn't pull the full-size display image. Derivative names carry a
+// content hash and can't be guessed, so they come from the album payload;
+// photos with none yet (just uploaded, or smaller than 480px) use the full
+// image, which is also what the onerror fallbacks below catch.
+function thumbUrl(slug, f, width) {
+  const byWidth = albums.find(a => a.slug === slug)?.thumbs?.[f];
+  const widths = Object.keys(byWidth ?? {}).map(Number).sort((a, b) => a - b);
+  const w = widths.find(x => x >= width) ?? widths[widths.length - 1];
+  return w === undefined ? photoUrl(slug, f) : '/albums/' + slug + '/resized/' + byWidth[w];
+}
 function albumDisplayName(a) {
   return a.info.name || toDisplayName(a.slug);
 }
@@ -898,9 +928,8 @@ function refreshCoverBadges() {
     }
   });
 
-  // The floating mini panel is an innerHTML snapshot of the preview — resync it.
-  document.getElementById('mini-preview-grid').innerHTML =
-    document.getElementById('masonry-preview').innerHTML;
+  // The mini panel renders its own elements and hides the badge in CSS, so the
+  // cover moving needs nothing done to it.
 }
 
 function renderOrderStrip() {
@@ -1023,7 +1052,7 @@ async function renderMasonryPreview() {
   await Promise.all(photos.map(f => loadAspect(slug, f)));
   if (sig.aborted) return;
 
-  function makeItem(f) {
+  function makeItem(f, interactive) {
     const item = document.createElement('div');
     item.className = 'preview-item';
     item.dataset.file = f;
@@ -1041,21 +1070,28 @@ async function renderMasonryPreview() {
     }
 
     // Same gesture as the order strip above — set the cover from whichever grid
-    // you happen to be looking at.
-    item.title = f === cover ? 'Album cover' : 'Double-click to set as cover';
-    item.addEventListener('dblclick', () => setCover(f));
+    // you happen to be looking at. The mini panel is a thumbnail of the page,
+    // not a second place to edit it, so its copies get neither.
+    if (interactive) {
+      item.title = f === cover ? 'Album cover' : 'Double-click to set as cover';
+      item.addEventListener('dblclick', () => setCover(f));
+    }
 
     return item;
   }
 
-  const container = document.getElementById('masonry-preview');
-  const entries = photos.map(f => ({
-    el: makeItem(f),
+  const entries = interactive => photos.map(f => ({
+    el: makeItem(f, interactive),
     aspect: aspectFromRatio(aspectCache[slug + '/' + f] ?? 1.33),
   }));
-  layoutMasonryPreview(container, entries);
 
-  document.getElementById('mini-preview-grid').innerHTML = container.innerHTML;
+  layoutMasonryPreview(document.getElementById('masonry-preview'), entries(true));
+  // The mini panel gets its own elements rather than a copy of the preview's
+  // markup: innerHTML serializes attributes only, so a copy would arrive
+  // without the onerror fallback each <img> needs when a photo has no
+  // derivative yet — broken-image squares until something re-copied the markup
+  // after the originals had already failed over.
+  layoutMasonryPreview(document.getElementById('mini-preview-grid'), entries(false));
 }
 
 function buildAlbumInfo() {
