@@ -436,5 +436,33 @@
       "IMG_2281-1440w-5119e038.avif",
       "IMG_2281-1440w-e1b5b2e3.webp"
     ]
+  },
+  "new-york/DSC00097-edit35.jpg": {
+    "mtime": 1789844963948.878,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "resized/new-york/DSC00097-edit35.jpg": {
+    "mtime": 1789844964379.1628,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "DSC00097-edit35-480w-3279edc1.avif",
+      "DSC00097-edit35-480w-59e2870d.webp",
+      "DSC00097-edit35-960w-27a2a63a.avif",
+      "DSC00097-edit35-960w-13c0f7ab.webp"
+    ]
+  },
+  "san-francisco/Screenshot 2026-07-14 at 10.29.31 AM.png": {
+    "mtime": 1789845023772.1765,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}"
+  },
+  "resized/san-francisco/Screenshot 2026-07-14 at 10.29.31 AM.png": {
+    "mtime": 1789845024590.4844,
+    "render": "{\"MAX_DIMENSION\":1600,\"QUALITY\":85,\"DERIV_WIDTHS\":[480,960,1440],\"DERIV_QUALITY\":80,\"AVIF_QUALITY\":55,\"AVIF_EFFORT\":4,\"formats\":[\"avif\",\"webp\"],\"stamp\":\"Durga Kullakanda\"}",
+    "outputs": [
+      "Screenshot 2026-07-14 at 10.29.31 AM-480w-c165e5ca.avif",
+      "Screenshot 2026-07-14 at 10.29.31 AM-480w-46e6c5c3.webp",
+      "Screenshot 2026-07-14 at 10.29.31 AM-960w-05bfa851.avif",
+      "Screenshot 2026-07-14 at 10.29.31 AM-960w-a658fdb9.webp"
+    ]
   }
 }
