@@ -1,15 +1,12 @@
-import { createServer } from 'http';
+// The content editor: one file holding both its server and its whole browser
+// client. It mounts into the Astro dev server at /admin — see
+// scripts/admin-integration.mjs — so the site it edits is always the same
+// origin serving it, and every URL below is relative to `base`.
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, rmSync, renameSync, createWriteStream } from 'fs';
 import { join, extname, basename, resolve, sep } from 'path';
+import { Script } from 'vm';
 import { execFile } from 'child_process';
 
-const PORT      = 4001;
-// Bind to loopback only. This server has no auth and writes to the repo, so it
-// must not be reachable from the rest of the network.
-const HOST      = '127.0.0.1';
-// The dev site, for the "View Site" pill. Astro picks the next free port if
-// 4321 is taken, so SITE_URL overrides it: SITE_URL=http://localhost:4322 npm run admin
-const SITE_URL  = process.env.SITE_URL ?? 'http://localhost:4321';
 const ALBUMS_DIR = join(process.cwd(), 'public/images/albums');
 // Layout rules shared with the built site; served to the browser as-is so the
 // preview and the real grid can't drift apart. See src/lib/layout.mjs.
@@ -48,25 +45,24 @@ function writeFileAtomic(file, contents) {
 // writes, so the two windows stay in step without anyone reaching for F5.
 // Every JSON the editor saves goes through writeFileAtomic above; the routes
 // that move image files around announce themselves.
-const reloadClients = new Set();
-let broadcastTimer = null;
+//
+// The subscriber list belongs to a handler rather than to the module, so that
+// creating a handler twice in one process can't leave two of them writing to
+// each other's clients. Only the newest is ever mounted: Astro restarts its dev
+// server in-process when the config — or anything the config imports, which now
+// includes this file — changes, and the module stays cached across that. So a
+// new handler supersedes the old one, timer and all, instead of leaving it to
+// tick over responses that closed long ago.
+let active = null;
 
-function contentChanged() {
-  // Writes arrive in bursts — a drag reorders and autosaves, an upload lands
-  // several files — and one reload at the end of the burst is enough.
-  clearTimeout(broadcastTimer);
-  broadcastTimer = setTimeout(() => {
-    for (const res of reloadClients) res.write('event: content\ndata: {}\n\n');
-  }, 200);
+function setActiveHandler(next) {
+  if (active) clearInterval(active.keepalive);
+  active = next;
 }
 
-// Loopback needs no keepalive, but this is how a connection dropped without a
-// FIN — a laptop that slept — gets noticed instead of accumulating.
-setInterval(() => {
-  for (const res of reloadClients) {
-    try { res.write(': ping\n\n'); } catch { reloadClients.delete(res); }
-  }
-}, 30_000).unref();
+function contentChanged() {
+  active?.broadcast();
+}
 
 // ── Publishing ───────────────────────────────────────────────────────────────
 // Only the paths the editor itself writes. A half-finished code change in the
@@ -233,7 +229,10 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 1960 + 1 }, (_, i) => CURRENT_YEAR - i);
 
-const HTML = `<!DOCTYPE html>
+// Rendered once per handler, not per request. `base` is where this page is
+// mounted inside the dev server.
+function renderShell({ base }) {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -277,12 +276,6 @@ const HTML = `<!DOCTYPE html>
   #view-site-link:hover { color: #1c1917; border-color: #d6d3d1; }
   body.dark #view-site-link { background: rgba(28,25,23,0.92); border-color: #292524; color: #a8a29e; }
   body.dark #view-site-link:hover { color: #e7e5e4; border-color: #44403c; }
-  /* Nothing is listening on the dev site's port. Still clickable — it may have
-     come up since the last probe — but it shouldn't look like a live link. */
-  #view-site-link.offline { opacity: 0.45; }
-  #view-site-link .offline-only { display: none; }
-  #view-site-link.offline .online-only { display: none; }
-  #view-site-link.offline .offline-only { display: inline; }
 
   /* ── Publish ── */
   #publish-btn { background: none; border: 1px solid #d6d3d1; border-radius: 999px; padding: 7px 16px; font: inherit; font-size: 12px; font-weight: 700; color: #57534e; cursor: pointer; transition: all 0.15s; }
@@ -523,10 +516,9 @@ const HTML = `<!DOCTYPE html>
 <!-- Fixed to the viewport, so it's outside the sidebar it used to sit in. The
      href tracks the editor's route (see syncUrl) — editing an album and
      clicking this lands on that album, not the homepage. -->
-<a href="${SITE_URL}" id="view-site-link">
+<a href="/" id="view-site-link">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-  <span class="online-only">View Site</span>
-  <span class="offline-only">Dev site off</span>
+  View Site
 </a>
 
 <!-- Publishing commits and pushes the content paths only (see PUBLISH_PATHS),
@@ -700,12 +692,21 @@ const HTML = `<!DOCTYPE html>
 <script type="module">
 // The aspect thresholds, the display-name fallback, the cover rule and the
 // masonry packing all come from the same file the built site uses, served by
-// this server at /layout.mjs — so the preview below can't drift from the real
-// grid. See src/lib/layout.mjs.
-import { aspectFromRatio, toDisplayName, effectiveCover, planMasonry } from '/layout.mjs';
+// this server — so the preview below can't drift from the real grid. See
+// src/lib/layout.mjs. The specifier is baked in at render time, which is why a
+// static import can carry what is otherwise a runtime value.
+import { aspectFromRatio, toDisplayName, effectiveCover, planMasonry } from '${base}/layout.mjs';
+
+// Where this editor is mounted, and where the site is. Everything the page
+// requests is built from these, so the same client code works whether it was
+// served by the Astro dev server at /admin or by the standalone server at the
+// root of its own port.
+const BASE = ${JSON.stringify(base)};
+const API = BASE + '/api';
+const ASSET_BASE = BASE + '/albums';
 
 let albums = [], currentAlbum = null, currentView = null, dragSrc = null, aboutData = {}, socialsData = [];
-function photoUrl(slug, f) { return '/albums/' + slug + '/display/' + f; }
+function photoUrl(slug, f) { return ASSET_BASE + '/' + slug + '/display/' + f; }
 // Smallest responsive derivative at or above the width we need — so a tiny
 // preview doesn't pull the full-size display image. Derivative names carry a
 // content hash and can't be guessed, so they come from the album payload;
@@ -715,7 +716,7 @@ function thumbUrl(slug, f, width) {
   const byWidth = albums.find(a => a.slug === slug)?.thumbs?.[f];
   const widths = Object.keys(byWidth ?? {}).map(Number).sort((a, b) => a - b);
   const w = widths.find(x => x >= width) ?? widths[widths.length - 1];
-  return w === undefined ? photoUrl(slug, f) : '/albums/' + slug + '/resized/' + byWidth[w];
+  return w === undefined ? photoUrl(slug, f) : ASSET_BASE + '/' + slug + '/resized/' + byWidth[w];
 }
 function albumDisplayName(a) {
   return a.info.name || toDisplayName(a.slug);
@@ -729,26 +730,30 @@ const aspectCache = {};
 // hard load of /album/san-francisco renders straight into that album.
 const TITLES = { home: 'Homepage', about: 'About', projects: 'Projects' };
 
-const SITE_URL = ${JSON.stringify(SITE_URL)};
-
-// The same route on the site: what the "View Site" pill points at.
+// The same route on the site: what the "View Site" pill points at. The site is
+// whatever is serving this page, so these are plain relative links.
 function sitePath(view, slug) {
-  if (view === 'album')    return SITE_URL + '/albums/' + encodeURIComponent(slug);
-  if (view === 'about')    return SITE_URL + '/about';
-  if (view === 'projects') return SITE_URL + '/projects';
-  return SITE_URL + '/';
-}
-
-function routePath(view, slug) {
-  if (view === 'album')    return '/album/' + encodeURIComponent(slug);
+  if (view === 'album')    return '/albums/' + encodeURIComponent(slug);
   if (view === 'about')    return '/about';
   if (view === 'projects') return '/projects';
   return '/';
 }
 
+function routePath(view, slug) {
+  if (view === 'album')    return BASE + '/album/' + encodeURIComponent(slug);
+  if (view === 'about')    return BASE + '/about';
+  if (view === 'projects') return BASE + '/projects';
+  // BASE itself, not BASE + '/': a site configured with trailingSlash 'never'
+  // would redirect (and then 404) the trailing form.
+  return BASE || '/';
+}
+
 function parseRoute() {
   let path;
   try { path = decodeURIComponent(location.pathname); } catch { path = location.pathname; }
+  // Match against the path within the editor, so the same regexes work at the
+  // root of the standalone server and under /admin inside Astro.
+  if (BASE && path.startsWith(BASE)) path = path.slice(BASE.length) || '/';
   const m = path.match(/^\\/album\\/(.+?)\\/?$/);
   if (m) return { view: 'album', slug: m[1] };
   if (/^\\/about\\/?$/.test(path))    return { view: 'about' };
@@ -766,8 +771,18 @@ function syncUrl(hist, view, slug) {
   document.getElementById('view-site-link').href = sitePath(view, slug);
   if (!hist) return;
   const path = routePath(view, slug);
-  // Re-selecting the current view shouldn't stack a duplicate entry.
-  if (hist === 'push' && location.pathname === path) return;
+  // Skip a history write that wouldn't change where we are — re-selecting the
+  // current view shouldn't stack a duplicate entry, and arriving at /admin/
+  // shouldn't be "corrected" to /admin. parseRoute reads both the same way, so
+  // the rewrite bought nothing, and rewriting the URL on every single load
+  // hands anything watching the history API something to react to: a browser
+  // extension doing exactly that turned it into a reload loop, each rewrite
+  // answered by a navigation back to the URL it had.
+  // No regex here on purpose: this whole page is a template literal, where a
+  // backslash needs doubling, and /\/$/ collapses to // — a comment that eats
+  // the rest of the script.
+  const trim = p => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
+  if (trim(location.pathname) === trim(path)) return;
   history[hist === 'replace' ? 'replaceState' : 'pushState']({ view, slug: slug ?? null }, '', path);
 }
 
@@ -786,33 +801,16 @@ function renderRoute(hist) {
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 async function load() {
-  albums = await fetch('/api/albums').then(r => r.json());
+  albums = await fetch(API + '/albums').then(r => r.json());
   renderSidebar();
-  aboutData = await fetch('/api/about').then(r => r.json()).catch(() => ({}));
+  aboutData = await fetch(API + '/about').then(r => r.json()).catch(() => ({}));
   document.getElementById('site-name').textContent = aboutData.name ?? '';
   window.addEventListener('popstate', () => renderRoute(false));
   renderRoute('replace');
-  probeSite();
   refreshPublishState();
-  // Coming back to this tab is when a stale answer is most likely: the dev
-  // server may have been started, or a publish may have happened elsewhere.
-  window.addEventListener('focus', () => { probeSite(); refreshPublishState(); });
-}
-
-// ── The dev site: is anything actually there? ──────────────────────────────
-// no-cors can't read the response, but it settles either way — resolved means
-// something answered on that port, rejected means nothing did. That's the whole
-// question, and it avoids needing CORS headers on the Astro dev server.
-async function probeSite() {
-  let up = true;
-  try {
-    await fetch(SITE_URL + '/', { mode: 'no-cors', cache: 'no-store' });
-  } catch {
-    up = false;
-  }
-  const link = document.getElementById('view-site-link');
-  link.classList.toggle('offline', !up);
-  link.title = up ? '' : 'Not running — start it with: npm run dev';
+  // Coming back to this tab is when a stale answer is most likely — a publish
+  // may have happened elsewhere.
+  window.addEventListener('focus', refreshPublishState);
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
@@ -898,7 +896,7 @@ function renderSidebar() {
 async function saveAlbumOrder(slugs) {
   albums.sort((a, b) => slugs.indexOf(a.slug) - slugs.indexOf(b.slug));
   try {
-    await postJSON('/api/album-order', { order: slugs });
+    await postJSON(API + '/album-order', { order: slugs });
   } catch (err) {
     reportSaveError(['home-save-status', 'home-save-status-top'], err);
   }
@@ -1343,7 +1341,7 @@ function buildAlbumInfo() {
 
 async function saveAlbumInfo() {
   const info = buildAlbumInfo();
-  await postJSON('/api/albums/' + encodeURIComponent(currentAlbum.slug), info);
+  await postJSON(API + '/albums/' + encodeURIComponent(currentAlbum.slug), info);
   currentAlbum.info = info;
   return info;
 }
@@ -1377,7 +1375,7 @@ document.getElementById('delete-album-btn').addEventListener('click', async () =
   clearTimeout(autosaveTimer);
   autosavePending = false;
 
-  await fetch('/api/albums/' + encodeURIComponent(slug), { method: 'DELETE' });
+  await fetch(API + '/albums/' + encodeURIComponent(slug), { method: 'DELETE' });
 
   albums = albums.filter(a => a.slug !== slug);
   selectHome();
@@ -1675,7 +1673,7 @@ async function saveHomeData() {
     name:    document.getElementById('home-name').value.trim(),
     tagline: document.getElementById('home-tagline').value.trim(),
   };
-  await postJSON('/api/about', aboutData);
+  await postJSON(API + '/about', aboutData);
   document.getElementById('site-name').textContent = aboutData.name ?? '';
 }
 
@@ -1712,7 +1710,7 @@ async function selectAbout(hist = 'push') {
   const gearList = document.getElementById('gear-list');
   gearList.innerHTML = '';
   (aboutData.gear ?? []).forEach(g => gearList.appendChild(createGearItem(g)));
-  socialsData = await fetch('/api/socials').then(r => r.json()).catch(() => []);
+  socialsData = await fetch(API + '/socials').then(r => r.json()).catch(() => []);
   const socialsList = document.getElementById('socials-list');
   socialsList.innerHTML = '';
   socialsData.forEach(s => socialsList.appendChild(createSocialItem(s)));
@@ -1739,7 +1737,7 @@ async function saveAboutData() {
     gear:    [...document.getElementById('gear-list').querySelectorAll('input.bare')]
                .map(i => i.value.trim()).filter(Boolean),
   };
-  await postJSON('/api/about', aboutData);
+  await postJSON(API + '/about', aboutData);
 }
 
 const aboutAutosave = makeAutosave(saveAboutData, ['about-save-status', 'about-save-status-top']);
@@ -1819,7 +1817,7 @@ async function saveSocialsData() {
     label: card.querySelector('.social-label').value.trim(),
     href:  card.querySelector('.social-href').value.trim(),
   })).filter(s => s.label && s.href);
-  await postJSON('/api/socials', socialsData);
+  await postJSON(API + '/socials', socialsData);
 }
 
 const socialsAutosave = makeAutosave(saveSocialsData, ['about-save-status', 'about-save-status-top']);
@@ -1878,7 +1876,7 @@ async function selectProjects(hist = 'push') {
   syncUrl(hist, 'projects');
   renderSidebar();
   showEditor('projects-editor');
-  const data = await fetch('/api/projects').then(r => r.json());
+  const data = await fetch(API + '/projects').then(r => r.json());
   const list = document.getElementById('projects-list');
   list.innerHTML = '';
   data.forEach(p => list.appendChild(createProjectCard(p)));
@@ -1897,7 +1895,7 @@ async function saveProjectsData() {
     description: card.querySelector('.proj-desc').value.trim(),
     href:        card.querySelector('.proj-url').value.trim(),
   })).filter(p => p.name);
-  await postJSON('/api/projects', projects);
+  await postJSON(API + '/projects', projects);
 }
 
 const projectsAutosave = makeAutosave(saveProjectsData, ['projects-save-status', 'projects-save-status-top']);
@@ -1937,7 +1935,7 @@ async function uploadFiles(files) {
     await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, async () => {
       for (let file = queue.shift(); file; file = queue.shift()) {
         const res = await fetch(
-          \`/api/albums/\${encodeURIComponent(slug)}/upload?filename=\${encodeURIComponent(file.name)}\`,
+          API + \`/albums/\${encodeURIComponent(slug)}/upload?filename=\${encodeURIComponent(file.name)}\`,
           { method: 'POST', body: file },
         );
         if (!res.ok) throw new Error('upload of ' + file.name + ' failed (HTTP ' + res.status + ')');
@@ -1947,7 +1945,7 @@ async function uploadFiles(files) {
     }));
 
     setUploadStatus('Processing…');
-    const res = await fetch(\`/api/albums/\${encodeURIComponent(slug)}/process\`, { method: 'POST' });
+    const res = await fetch(API + \`/albums/\${encodeURIComponent(slug)}/process\`, { method: 'POST' });
     if (!res.ok) throw new Error('image processing failed (HTTP ' + res.status + ')');
     const { photos, thumbs } = await res.json();
 
@@ -1986,7 +1984,7 @@ async function deletePhoto(f) {
 
   setUploadStatus('Deleting…');
   try {
-    await fetch(\`/api/albums/\${encodeURIComponent(currentAlbum.slug)}/photos/\${encodeURIComponent(f)}\`, { method: 'DELETE' });
+    await fetch(API + \`/albums/\${encodeURIComponent(currentAlbum.slug)}/photos/\${encodeURIComponent(f)}\`, { method: 'DELETE' });
 
     currentAlbum.photos = currentAlbum.photos.filter(p => p !== f);
     if (currentAlbum.info.cover === f) delete currentAlbum.info.cover;
@@ -2056,7 +2054,7 @@ function defaultMessage(changes) {
 
 async function refreshPublishState() {
   try {
-    publishState = await fetch('/api/git/status').then(r => {
+    publishState = await fetch(API + '/git/status').then(r => {
       if (!r.ok) throw new Error('git status unavailable');
       return r.json();
     });
@@ -2129,7 +2127,7 @@ document.getElementById('publish-confirm').addEventListener('click', async () =>
   publishStatus.className = '';
   publishStatus.textContent = 'Publishing…';
   try {
-    const res  = await fetch('/api/git/publish', {
+    const res  = await fetch(API + '/git/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
@@ -2192,7 +2190,7 @@ document.getElementById('add-album-btn').addEventListener('click', async () => {
 
   await flushAutosave();
 
-  const res = await fetch('/api/albums', {
+  const res = await fetch(API + '/albums', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ slug }),
@@ -2203,7 +2201,7 @@ document.getElementById('add-album-btn').addEventListener('click', async () => {
     return;
   }
 
-  albums = await fetch('/api/albums').then(r => r.json());
+  albums = await fetch(API + '/albums').then(r => r.json());
   await selectAlbum(slug);
 });
 
@@ -2211,12 +2209,70 @@ load();
 </script>
 </body>
 </html>`;
+}
 
-createServer((req, res) => {
-  const rawPath = new URL(req.url, `http://localhost:${PORT}`).pathname;
+/**
+ * The editor as a middleware. `base` is where it's mounted — '' standalone, or
+ * '/admin' inside the Astro dev server — and is needed only by the page it
+ * serves: Connect strips the mount prefix before the handler sees a request, so
+ * every route below matches identically either way.
+ *
+ * Synchronous on purpose, and so is the middleware it returns: the upload route
+ * has to reach req.pipe() in the same tick or the first chunks are lost.
+ */
+export function createAdminHandler({ base = '' } = {}) {
+  const SHELL = renderShell({ base });
+  checkClientScripts(SHELL);
+
+  // This handler's own subscribers, registered as the active one below.
+  const reloadClients = new Set();
+  let broadcastTimer = null;
+
+  setActiveHandler({
+    broadcast() {
+      // Writes arrive in bursts — a drag reorders and autosaves, an upload lands
+      // several files — and one reload at the end of the burst is enough.
+      clearTimeout(broadcastTimer);
+      broadcastTimer = setTimeout(() => {
+        for (const res of reloadClients) res.write('event: content\ndata: {}\n\n');
+      }, 200);
+    },
+    // Loopback needs no keepalive, but this is how a connection dropped without
+    // a FIN — a laptop that slept — gets noticed instead of accumulating.
+    // unref'd so it never holds the dev server open on Ctrl-C.
+    keepalive: setInterval(() => {
+      for (const res of reloadClients) {
+        try { res.write(': ping\n\n'); } catch { reloadClients.delete(res); }
+      }
+    }, 30_000).unref(),
+  });
+
+  return function admin(req, res, next) {
+  // The standalone server binds to loopback, but mounted inside Astro this rides
+  // on whatever `astro dev` bound — and `--host` binds every interface. So the
+  // guarantee has to live here rather than in a bind: this API writes the repo
+  // and runs `git push`, and must answer nobody but this machine.
+  if (!isLocalRequest(req)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('The admin panel only answers requests from this machine.\n');
+    logErr('remote request', `refused ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
+    return;
+  }
+
+  const rawPath = new URL(req.url, 'http://localhost').pathname;
   // Decode so non-ASCII album slugs (e.g. "Hawaiʻi") match the folder on disk.
   let path;
   try { path = decodeURIComponent(rawPath); } catch { path = rawPath; }
+
+  // A page on another origin can reach a localhost port through the browser, and
+  // neither Vite's CORS defaults (any localhost port) nor Astro's Sec-Fetch rules
+  // (same-site, and any navigation) stop a cross-origin form POST. The stream is
+  // exempt: standalone, the site is genuinely another origin and subscribes to it.
+  if (path.startsWith('/api/') && path !== '/api/events' && !isSameOrigin(req)) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end('{"error":"cross-origin request blocked"}');
+    return;
+  }
 
   // Shared layout rules, served straight from src/ so the admin preview and the
   // built site run the exact same code.
@@ -2387,7 +2443,7 @@ createServer((req, res) => {
   if (uploadM && req.method === 'POST') {
     const slug = safeSlug(uploadM[1]);
     if (!slug) { res.writeHead(400); return res.end('{"error":"invalid slug"}'); }
-    const filename = basename(new URL(req.url, `http://localhost:${PORT}`).searchParams.get('filename') ?? '');
+    const filename = basename(new URL(req.url, 'http://localhost').searchParams.get('filename') ?? '');
     if (!IMAGE_RE.test(filename)) { res.writeHead(400); return res.end('{"error":"unsupported file type"}'); }
     const originalsDir = join(ALBUMS_DIR, slug, 'originals');
     try {
@@ -2517,5 +2573,60 @@ createServer((req, res) => {
   }
 
   res.writeHead(200, { 'Content-Type': 'text/html' });
-  res.end(HTML);
-}).listen(PORT, HOST, () => console.log(`Site admin → http://localhost:${PORT}`));
+  res.end(SHELL);
+  };
+}
+
+// ── Guards ───────────────────────────────────────────────────────────────────
+
+/**
+ * Compile the scripts we're about to serve, without running them.
+ *
+ * The whole client lives inside a template literal, where a backslash has to be
+ * doubled and a `${` escaped. Get that wrong and the browser is handed a module
+ * it refuses to parse: the page renders nothing at all, the server reports a
+ * healthy 200, and there is no clue anywhere but the browser console. (A `/\/$/`
+ * written without doubling collapses to `//`, which comments out the rest of the
+ * line — that is the whole failure.) One compile at startup turns a blank page
+ * into a message in the terminal, naming the line.
+ */
+function checkClientScripts(html) {
+  for (const [, attrs, source] of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
+    // `import` is a syntax error outside a module, and vm has no module mode
+    // without a flag. Blank the lines rather than dropping them, so the line
+    // numbers a failure reports still match what the browser would see.
+    const code = source.replace(/^\s*import .*$/gm, '');
+    try {
+      new Script(code, { filename: 'admin-client.js' });
+    } catch (err) {
+      const line = Number(err.stack?.match(/admin-client\.js:(\d+)/)?.[1]);
+      const text = line ? source.split('\n')[line - 1]?.trim() : null;
+      logErr(
+        `admin client script${attrs.includes('module') ? ' (module)' : ''}`,
+        `${err.message}${text ? `\n           line ${line}: ${text}` : ''}\n           ` +
+        'The page will render blank until this is fixed — check the backslash ' +
+        'and ${} escaping in the template literal.',
+      );
+    }
+  }
+}
+
+// Loopback peers only. The IPv4-mapped form (::ffff:127.0.0.1) is what a
+// dual-stack listener reports for an IPv4 client, so it counts too.
+function isLocalRequest(req) {
+  const addr = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+  return addr === '::1' || addr.startsWith('127.');
+}
+
+// A matching Origin, or none at all (same-origin GETs and curl send none). Any
+// state-changing method must bring one, so a cross-origin form POST — which does
+// send Origin — can't pass as a request with none.
+function isSameOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return req.method === 'GET' || req.method === 'HEAD';
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}

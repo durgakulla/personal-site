@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
+import adminPanel from './scripts/admin-integration.mjs';
 
 // https://astro.build/config
 export default defineConfig({
@@ -14,7 +15,8 @@ export default defineConfig({
     prefetchAll: true,
     defaultStrategy: 'hover',
   },
-  integrations: [sitemap()],
+  // adminPanel only registers a dev-server hook, so it adds nothing to a build.
+  integrations: [sitemap(), adminPanel()],
   vite: {
     plugins: [tailwindcss()]
   }

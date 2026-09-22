@@ -43,17 +43,23 @@ function isActive(href: string) {
   return Astro.url.pathname === href || Astro.url.pathname.startsWith(href + '/');
 }
 
-// The local admin editor (npm run admin), linked from a pill that only exists
-// while `astro dev` is running. import.meta.env.DEV is resolved at build time,
-// so the hosted site carries no markup for it at all — not even hidden.
-// The album segment is passed through exactly as the URL spells it: encoded or
-// not, the admin decodes its own pathname, and the browser encodes an href.
+// The content editor, mounted into this same dev server at /admin (see
+// scripts/admin-integration.mjs), linked from a pill that only exists while
+// `astro dev` is running. import.meta.env.DEV is resolved at build time, so the
+// hosted site carries no markup for it at all — not even hidden.
+// Relative, so it follows this server wherever it is: another port, or a LAN
+// address under --host. The album segment is passed through exactly as the URL
+// spells it: encoded or not, the admin decodes its own pathname, and the browser
+// encodes an href.
 const adminPath = Astro.url.pathname.replace(/\/$/, '');
 const adminAlbum = adminPath.match(/^\/albums\/(.+)$/);
-const adminHref = 'http://localhost:4001' + (
+// The home case contributes nothing, not '/': the editor's canonical home URL is
+// '/admin', and it replaceState's to exactly that on load. Handing it '/admin/'
+// left the two disagreeing about which URL the page was on.
+const adminHref = '/admin' + (
   adminAlbum                  ? `/album/${adminAlbum[1]}` :
   adminPath === '/about'      ? '/about' :
-  adminPath === '/projects'   ? '/projects' : '/'
+  adminPath === '/projects'   ? '/projects' : ''
 );
 
 const logoColors = ['#c2542f', '#d9a441', '#2f6f6a', '#7a8b4f', '#a8433a', '#c9a066'];
@@ -274,7 +280,7 @@ const logoSecondLine = logoRestWords.join(' ');
 
     const connect = () => {
       source?.close();
-      source = new EventSource('http://localhost:4001/api/events');
+      source = new EventSource('/admin/api/events');
 
       source.onopen = () => {
         retry = 0;
@@ -285,12 +291,13 @@ const logoSecondLine = logoRestWords.join(' ');
       source.addEventListener('content', () => location.reload());
 
       source.onerror = () => {
-        // The admin isn't running (or just stopped). EventSource would retry
-        // forever on its own and fill the console doing it, so back off here
-        // instead, and say so on the pill rather than leaving a dead link.
+        // The stream dropped — most often the dev server restarting on a config
+        // change. EventSource would retry forever on its own and fill the console
+        // doing it, so back off here instead. The editor is part of this server
+        // now, so the pill is never a dead link; it just dims while detached.
         source?.close();
         adminPill?.classList.add('opacity-40');
-        if (adminPill) adminPill.title = 'Not running — start it with: npm run admin';
+        if (adminPill) adminPill.title = 'Reconnecting to the editor…';
         setTimeout(connect, Math.min(1000 * 2 ** retry++, 30000));
       };
     };
@@ -309,8 +316,9 @@ const logoSecondLine = logoRestWords.join(' ');
   });
 
   // ── Theme toggle ──────────────────────────────────────────────────────────────
-  // Written to a cookie as well as localStorage so the local admin — a
+  // Written to a cookie as well as localStorage so the standalone admin — a
   // different port, and so a different localStorage — sees the same choice.
+  // (Mounted at /admin it shares this origin and would see it either way.)
   // Only on localhost: in production there's no admin to sync with.
   const themeSynced = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 

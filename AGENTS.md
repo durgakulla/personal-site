@@ -14,11 +14,17 @@ the JSON in `src/data/` and album `info.json` files over hardcoding into
 templates. `src/data/about.json` `name` is the single source of truth for the
 site title, sidebar wordmark, and copyright.
 
-`npm run admin` starts a local-only editor (http://localhost:4001) for album
-metadata, About, and Projects. Its Publish button commits and pushes, staging
-only `public/images/albums/` and `src/data/` — code changes never ride along
-with a content publish. While `astro dev` is running, the two link to each
-other's matching page and the site live-reloads on every admin save.
+`npm run dev` serves the site at :4321 and mounts the content editor at
+`/admin` — one server. `scripts/admin.mjs` is the editor (one file, server and
+client); `scripts/admin-integration.mjs` mounts it via `astro:server:setup`, the
+hook that makes it dev-only. Editing `scripts/admin.mjs` needs a dev-server
+restart — it's loaded once at startup.
+
+The editor refuses non-loopback requests and cross-origin API calls — it writes
+to the repo and runs `git push`, and `astro dev --host` would otherwise expose
+it. Its Publish button stages only `public/images/albums/` and `src/data/`, so
+code changes never ride along with a content publish. Site and editor link to
+each other's matching page, and the site live-reloads on every save.
 
 ## Development
 

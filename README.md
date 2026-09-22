@@ -40,20 +40,32 @@ npm install
 npm run dev        # → http://localhost:4321
 ```
 
-In a second terminal, run the admin panel to edit content:
+That one command gives you both the site and the admin panel for editing its
+content:
 
-```bash
-npm run admin       # → http://localhost:4001
-```
+| | |
+|---|---|
+| `http://localhost:4321` | the site |
+| `http://localhost:4321/admin` | the editor |
 
-Both are local-only dev servers. When either one is running on localhost, a
-small link appears in its sidebar to jump to the other — so you can bounce
-between editing and previewing. That link never appears on the deployed site.
+A small pill sits in the bottom-left corner of each, pointing at the other's
+matching page — editing an album and clicking through lands you on that album.
+The site reloads by itself whenever you save something in the editor.
+
+Both are dev-only. The editor is mounted by an Astro integration that registers
+a dev-server hook and nothing else, so it cannot reach a build — and the pill is
+compiled out of the deployed site entirely.
+
+It also refuses any request that doesn't come from your own machine, so
+`astro dev --host` (which serves the site to your network) never exposes an API
+that writes to your repo.
 
 ## Using the Admin Panel
 
-The admin panel (`npm run admin`) is a small local Node server — no build
-step, no login, writes straight to the files on disk. Everything **autosaves**
+The admin panel (`/admin` while `npm run dev` is running) is a small local Node
+server — no build step, no login, writes straight to the files on disk. It's one
+file, `scripts/admin.mjs`, mounted into the dev server by
+`scripts/admin-integration.mjs`. Everything **autosaves**
 a moment after you stop typing (or immediately for drag-and-drop actions), so
 there's rarely a "Save" button you actually need — though one's always there
 if you want to force it.
@@ -198,4 +210,13 @@ button: committing and pushing by hand works exactly as it always did.
 - [Tailwind CSS v4](https://tailwindcss.com) — styling
 - [Sharp](https://sharp.pixelplumbing.com) — build-time image optimization
 - [exifr](https://github.com/MikeKovarik/exifr) — EXIF extraction
-- A small vanilla Node HTTP server (`scripts/admin.mjs`) — the admin panel, no framework, no build step
+- A small vanilla Node HTTP server (`scripts/admin.mjs`) — the admin panel, no framework, no build step; mounted into the dev server as middleware, or run on its own port
+
+### Notes for forks
+
+- `/admin` is served by middleware, so a page at `src/pages/admin.astro` would be
+  shadowed by it. Pass a different mount point if you want that URL:
+  `adminPanel({ base: '/editor' })` in `astro.config.mjs`.
+- The editor's routes are plain paths under that mount. Setting Astro's
+  `trailingSlash: 'always'` breaks them; `'ignore'` (the default) and `'never'`
+  are both fine.
