@@ -15,7 +15,10 @@ templates. `src/data/about.json` `name` is the single source of truth for the
 site title, sidebar wordmark, and copyright.
 
 `npm run admin` starts a local-only editor (http://localhost:4001) for album
-metadata, About, and Projects.
+metadata, About, and Projects. Its Publish button commits and pushes, staging
+only `public/images/albums/` and `src/data/` — code changes never ride along
+with a content publish. While `astro dev` is running, the two link to each
+other's matching page and the site live-reloads on every admin save.
 
 ## Development
 

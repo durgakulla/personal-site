@@ -7,6 +7,9 @@ const PORT      = 4001;
 // Bind to loopback only. This server has no auth and writes to the repo, so it
 // must not be reachable from the rest of the network.
 const HOST      = '127.0.0.1';
+// The dev site, for the "View Site" pill. Astro picks the next free port if
+// 4321 is taken, so SITE_URL overrides it: SITE_URL=http://localhost:4322 npm run admin
+const SITE_URL  = process.env.SITE_URL ?? 'http://localhost:4321';
 const ALBUMS_DIR = join(process.cwd(), 'public/images/albums');
 // Layout rules shared with the built site; served to the browser as-is so the
 // preview and the real grid can't drift apart. See src/lib/layout.mjs.
@@ -37,6 +40,125 @@ function writeFileAtomic(file, contents) {
     try { unlinkSync(tmp); } catch {}
     throw err;
   }
+  contentChanged();
+}
+
+// ── Live reload ──────────────────────────────────────────────────────────────
+// The dev site holds an EventSource open here and reloads when the editor
+// writes, so the two windows stay in step without anyone reaching for F5.
+// Every JSON the editor saves goes through writeFileAtomic above; the routes
+// that move image files around announce themselves.
+const reloadClients = new Set();
+let broadcastTimer = null;
+
+function contentChanged() {
+  // Writes arrive in bursts — a drag reorders and autosaves, an upload lands
+  // several files — and one reload at the end of the burst is enough.
+  clearTimeout(broadcastTimer);
+  broadcastTimer = setTimeout(() => {
+    for (const res of reloadClients) res.write('event: content\ndata: {}\n\n');
+  }, 200);
+}
+
+// Loopback needs no keepalive, but this is how a connection dropped without a
+// FIN — a laptop that slept — gets noticed instead of accumulating.
+setInterval(() => {
+  for (const res of reloadClients) {
+    try { res.write(': ping\n\n'); } catch { reloadClients.delete(res); }
+  }
+}, 30_000).unref();
+
+// ── Publishing ───────────────────────────────────────────────────────────────
+// Only the paths the editor itself writes. A half-finished code change in the
+// working tree shouldn't ride along with a content publish — that's what a
+// terminal is for.
+const PUBLISH_PATHS = ['public/images/albums', 'src/data'];
+
+function git(args) {
+  return new Promise((resolve, reject) => {
+    // execFile, never a shell: the commit message is user input, and a shell
+    // would put it one quote away from being a command.
+    execFile('git', args, {
+      cwd: process.cwd(),
+      maxBuffer: 10_000_000,
+      env: {
+        // A server has no terminal to prompt at. Left to itself git would sit
+        // waiting for a username that can never arrive, taking this
+        // single-threaded process down with it — the whole editor would freeze
+        // on a click. Both of these turn that into an immediate, readable
+        // error instead. Anything already in the environment wins, so someone
+        // with their own askpass setup keeps it.
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
+        ...process.env,
+      },
+    }, (err, stdout, stderr) => {
+      if (err) reject(new Error((stderr || stdout || err.message).trim()));
+      else resolve(stdout);
+    });
+  });
+}
+
+// Anything that isn't a hard error — returns null rather than throwing, for
+// the parts of the status that are allowed to be missing.
+async function gitTry(args) {
+  try { return (await git(args)).trim(); } catch { return null; }
+}
+
+async function gitStatus() {
+  const branch = (await git(['rev-parse', '--abbrev-ref', 'HEAD'])).trim();
+  // -uall lists the files inside a new album rather than collapsing it to the
+  // directory, so the panel can say how many photos are about to go out.
+  const out = await git(['status', '--porcelain', '-uall', '--', ...PUBLISH_PATHS]);
+  const changes = out.split('\n').filter(Boolean).map(line => ({
+    status: line.slice(0, 2).trim(),
+    path: line.slice(3).replace(/^"|"$/g, ''),
+  }));
+
+  // Where a push would actually land. A fork's origin is the fork; a clone of
+  // someone else's repo points at theirs, which is worth seeing before you
+  // press the button rather than in the error afterwards.
+  const upstream = await gitTry(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
+  const remoteName = upstream
+    ? upstream.split('/')[0]
+    : ((await gitTry(['remote'])) || '').split('\n').filter(Boolean)[0] ?? null;
+  const remoteUrl = remoteName ? await gitTry(['remote', 'get-url', remoteName]) : null;
+
+  // The first commit in a fresh clone fails outright without these, so say so
+  // up front instead of after the files are staged.
+  const identity = Boolean(await gitTry(['config', 'user.name']) && await gitTry(['config', 'user.email']));
+
+  return {
+    branch,
+    changes,
+    upstream,
+    identity,
+    remote: remoteName,
+    // A remote URL can carry a token (https://user:token@host/…). Strip any
+    // credentials before this goes anywhere near the page.
+    remoteUrl: remoteUrl ? remoteUrl.replace(/\/\/[^@/]*@/, '//') : null,
+  };
+}
+
+async function gitPublish(message) {
+  const { upstream, remote, identity } = await gitStatus();
+  if (!identity) {
+    throw new Error('git needs an identity first:\n  git config user.name "Your Name"\n  git config user.email you@example.com');
+  }
+  if (!upstream && !remote) {
+    throw new Error('no git remote to push to — add one with:\n  git remote add origin <url>');
+  }
+
+  await git(['add', '--', ...PUBLISH_PATHS]);
+  const staged = (await git(['diff', '--cached', '--name-only'])).trim();
+  if (!staged) throw new Error('nothing to publish');
+  await git(['commit', '-m', message]);
+  const sha = (await git(['rev-parse', '--short', 'HEAD'])).trim();
+  // A branch that has never been pushed has nothing to push to; -u names the
+  // target once and every publish after this one is a plain push.
+  await git(upstream ? ['push'] : ['push', '-u', remote, 'HEAD']);
+  log(`Published ${sha}: ${message}`);
+  return { sha, files: staged.split('\n').length };
 }
 
 // The route patterns use [^/]+ so a slug can't contain a separator, but "." and
@@ -139,10 +261,53 @@ const HTML = `<!DOCTYPE html>
   .site-logo-strip span { flex: 1; }
   #sidebar-header h1 { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a8a29e; }
   body.dark #sidebar-header h1 { color: #78716c; }
-  #sidebar-footer { margin-top: auto; padding: 20px 24px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  #view-site-link { display: flex; align-items: center; gap: 6px; color: #a8a29e; font-size: 12px; text-decoration: none; transition: color 0.15s; }
-  #view-site-link:hover { color: #1c1917; }
-  body.dark #view-site-link:hover { color: #e7e5e4; }
+  #sidebar-footer { margin-top: auto; padding: 20px 24px 56px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  /* Pinned bottom-left, the same corner the site's Admin pill uses, so hopping
+     between the two is one spot to aim at rather than two. Above the mini
+     preview panel (z-index 30) — it's the one control that must stay clickable. */
+  #view-site-link {
+    position: fixed; bottom: 20px; left: 20px; z-index: 40;
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 13px; border-radius: 999px;
+    border: 1px solid #e7e5e4; background: rgba(255,255,255,0.92); backdrop-filter: blur(6px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    color: #78716c; font-size: 12px; font-weight: 600; text-decoration: none;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  #view-site-link:hover { color: #1c1917; border-color: #d6d3d1; }
+  body.dark #view-site-link { background: rgba(28,25,23,0.92); border-color: #292524; color: #a8a29e; }
+  body.dark #view-site-link:hover { color: #e7e5e4; border-color: #44403c; }
+  /* Nothing is listening on the dev site's port. Still clickable — it may have
+     come up since the last probe — but it shouldn't look like a live link. */
+  #view-site-link.offline { opacity: 0.45; }
+  #view-site-link .offline-only { display: none; }
+  #view-site-link.offline .online-only { display: none; }
+  #view-site-link.offline .offline-only { display: inline; }
+
+  /* ── Publish ── */
+  #publish-btn { background: none; border: 1px solid #d6d3d1; border-radius: 999px; padding: 7px 16px; font: inherit; font-size: 12px; font-weight: 700; color: #57534e; cursor: pointer; transition: all 0.15s; }
+  #publish-btn:hover:not(:disabled) { border-color: #1c1917; color: #1c1917; }
+  #publish-btn:disabled { opacity: 0.4; cursor: default; }
+  body.dark #publish-btn { border-color: #44403c; color: #a8a29e; }
+  body.dark #publish-btn:hover:not(:disabled) { border-color: #a8a29e; color: #e7e5e4; }
+  #publish-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #d97706; margin-right: 6px; vertical-align: middle; }
+  #publish-panel {
+    display: none; position: fixed; left: 20px; bottom: 72px; z-index: 45; width: 340px;
+    background: #fff; border: 1px solid #e7e5e4; border-radius: 10px; padding: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  }
+  #publish-panel.open { display: block; }
+  body.dark #publish-panel { background: #1c1917; border-color: #292524; }
+  .publish-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #57534e; margin-bottom: 4px; }
+  body.dark .publish-title { color: #a8a29e; }
+  .publish-target { font-size: 11px; color: #a8a29e; margin-bottom: 12px; }
+  .publish-target strong { color: #b45309; }
+  #publish-changes { max-height: 180px; overflow-y: auto; margin-bottom: 12px; font-size: 11px; line-height: 1.7; color: #78716c; }
+  #publish-changes div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+  .publish-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  #publish-status { font-size: 11px; color: #78716c; margin-top: 10px; word-break: break-word; white-space: pre-wrap; max-height: 120px; overflow-y: auto; }
+  #publish-status.error { color: #dc2626; }
+  #publish-status.ok { color: #16a34a; }
   #theme-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #a8a29e; font-size: 12px; padding: 0; transition: color 0.15s; }
   #theme-btn:hover { color: #1c1917; }
   body.dark #theme-btn:hover { color: #e7e5e4; }
@@ -346,16 +511,36 @@ const HTML = `<!DOCTYPE html>
     <button class="add-btn" id="add-album-btn" style="margin-top:8px;">+ New Album</button>
   </div>
   <div id="sidebar-footer">
+    <button id="publish-btn" disabled>Publish</button>
     <button id="theme-btn" aria-label="Toggle dark mode">
       <svg id="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <svg id="icon-sun"  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <span id="theme-btn-label">Dark</span>
     </button>
-    <a href="http://localhost:4321" id="view-site-link">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      View Site
-    </a>
   </div>
+</div>
+
+<!-- Fixed to the viewport, so it's outside the sidebar it used to sit in. The
+     href tracks the editor's route (see syncUrl) — editing an album and
+     clicking this lands on that album, not the homepage. -->
+<a href="${SITE_URL}" id="view-site-link">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+  <span class="online-only">View Site</span>
+  <span class="offline-only">Dev site off</span>
+</a>
+
+<!-- Publishing commits and pushes the content paths only (see PUBLISH_PATHS),
+     so the list below is the whole of what goes out. -->
+<div id="publish-panel">
+  <div class="publish-title">Publish</div>
+  <div class="publish-target" id="publish-target"></div>
+  <div id="publish-changes"></div>
+  <input type="text" id="publish-message" class="bare" placeholder="Describe the change" maxlength="100">
+  <div class="publish-actions">
+    <button class="save-btn" id="publish-confirm" style="padding:8px 18px;font-size:13px;">Publish</button>
+    <button class="add-btn" id="publish-cancel" style="margin-top:0;padding:7px 14px;">Cancel</button>
+  </div>
+  <div id="publish-status"></div>
 </div>
 
 <div id="main">
@@ -544,6 +729,16 @@ const aspectCache = {};
 // hard load of /album/san-francisco renders straight into that album.
 const TITLES = { home: 'Homepage', about: 'About', projects: 'Projects' };
 
+const SITE_URL = ${JSON.stringify(SITE_URL)};
+
+// The same route on the site: what the "View Site" pill points at.
+function sitePath(view, slug) {
+  if (view === 'album')    return SITE_URL + '/albums/' + encodeURIComponent(slug);
+  if (view === 'about')    return SITE_URL + '/about';
+  if (view === 'projects') return SITE_URL + '/projects';
+  return SITE_URL + '/';
+}
+
 function routePath(view, slug) {
   if (view === 'album')    return '/album/' + encodeURIComponent(slug);
   if (view === 'about')    return '/about';
@@ -566,6 +761,9 @@ function parseRoute() {
 // e.g. a popstate — leave history alone).
 function syncUrl(hist, view, slug) {
   document.title = 'Site Admin — ' + (view === 'album' ? slug : TITLES[view]);
+  // Before the early return: a popstate changes the route without touching
+  // history, and the pill still has to follow it.
+  document.getElementById('view-site-link').href = sitePath(view, slug);
   if (!hist) return;
   const path = routePath(view, slug);
   // Re-selecting the current view shouldn't stack a duplicate entry.
@@ -594,6 +792,27 @@ async function load() {
   document.getElementById('site-name').textContent = aboutData.name ?? '';
   window.addEventListener('popstate', () => renderRoute(false));
   renderRoute('replace');
+  probeSite();
+  refreshPublishState();
+  // Coming back to this tab is when a stale answer is most likely: the dev
+  // server may have been started, or a publish may have happened elsewhere.
+  window.addEventListener('focus', () => { probeSite(); refreshPublishState(); });
+}
+
+// ── The dev site: is anything actually there? ──────────────────────────────
+// no-cors can't read the response, but it settles either way — resolved means
+// something answered on that port, rejected means nothing did. That's the whole
+// question, and it avoids needing CORS headers on the Astro dev server.
+async function probeSite() {
+  let up = true;
+  try {
+    await fetch(SITE_URL + '/', { mode: 'no-cors', cache: 'no-store' });
+  } catch {
+    up = false;
+  }
+  const link = document.getElementById('view-site-link');
+  link.classList.toggle('offline', !up);
+  link.title = up ? '' : 'Not running — start it with: npm run dev';
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
@@ -732,7 +951,19 @@ async function postJSON(url, data) {
     throw new Error('could not reach the admin server (is it still running?)');
   }
   if (!res.ok) throw new Error('server returned HTTP ' + res.status);
+  // Every save the editor makes lands here, which makes it the one place that
+  // knows the working tree just moved — so the Publish button's count follows
+  // along instead of going stale until the next focus.
+  schedulePublishRefresh();
   return res;
+}
+
+// git status per keystroke-ish save would be wasteful; one call after the
+// burst settles is plenty.
+let publishRefreshTimer = null;
+function schedulePublishRefresh() {
+  clearTimeout(publishRefreshTimer);
+  publishRefreshTimer = setTimeout(() => refreshPublishState(), 400);
 }
 
 const ALBUM_STATUS_IDS = ['album-save-status', 'album-save-status-bottom'];
@@ -1718,11 +1949,15 @@ async function uploadFiles(files) {
     setUploadStatus('Processing…');
     const res = await fetch(\`/api/albums/\${encodeURIComponent(slug)}/process\`, { method: 'POST' });
     if (!res.ok) throw new Error('image processing failed (HTTP ' + res.status + ')');
-    const { photos } = await res.json();
+    const { photos, thumbs } = await res.json();
 
     const existing = new Set(currentAlbum.photos);
     const added = photos.filter(f => !existing.has(f));
     currentAlbum.photos = [...currentAlbum.photos, ...added];
+    // The optimizer just wrote derivatives for these. Without taking the fresh
+    // map, thumbUrl finds nothing for the new photos and the strip and preview
+    // render them from full-size display files for the rest of the session.
+    if (thumbs) currentAlbum.thumbs = thumbs;
     await saveAlbumInfo();
 
     renderOrderStrip();
@@ -1783,6 +2018,136 @@ albumEditorEl.addEventListener('drop', e => {
   albumEditorEl.classList.remove('drag-over');
   if (!currentAlbum || !e.dataTransfer.files.length) return;
   uploadFiles(e.dataTransfer.files);
+});
+
+// ── Publish ────────────────────────────────────────────────────────────────
+// Commit and push the content the editor writes, so a session that started in
+// the browser doesn't have to end in a terminal. The server stages only the
+// content paths, and the panel lists every file before anything happens.
+const publishBtn     = document.getElementById('publish-btn');
+const publishPanel   = document.getElementById('publish-panel');
+const publishMessage = document.getElementById('publish-message');
+const publishStatus  = document.getElementById('publish-status');
+let publishState = null;
+
+// Turn a changed path into something worth reading in a commit subject.
+function changeLabel(path) {
+  const album = path.match(/^public\\/images\\/albums\\/([^/]+)\\//);
+  if (album) {
+    const a = albums.find(x => x.slug === album[1]);
+    return a ? albumDisplayName(a) : album[1];
+  }
+  if (path.endsWith('about.json'))    return 'about';
+  if (path.endsWith('projects.json')) return 'projects';
+  if (path.endsWith('socials.json'))  return 'social links';
+  if (path.endsWith('albums.json'))   return 'album order';
+  return 'site content';
+}
+
+function defaultMessage(changes) {
+  const labels = [...new Set(changes.map(c => changeLabel(c.path)))];
+  // All new files under one album reads as an addition rather than an edit.
+  const added = changes.every(c => c.status === '??');
+  const verb  = added ? 'Add photos to ' : 'Update ';
+  if (labels.length === 1) return verb + labels[0];
+  if (labels.length === 2) return 'Update ' + labels[0] + ' and ' + labels[1];
+  return 'Update site content';
+}
+
+async function refreshPublishState() {
+  try {
+    publishState = await fetch('/api/git/status').then(r => {
+      if (!r.ok) throw new Error('git status unavailable');
+      return r.json();
+    });
+  } catch {
+    // No git repo, or no git — publishing simply isn't on offer.
+    publishState = null;
+    publishBtn.style.display = 'none';
+    return;
+  }
+  const n = publishState.changes.length;
+  publishBtn.style.display = '';
+  publishBtn.disabled = n === 0;
+  publishBtn.innerHTML = n
+    ? '<span id="publish-dot"></span>Publish ' + n + ' change' + (n === 1 ? '' : 's')
+    : 'Nothing to publish';
+}
+
+function openPublishPanel() {
+  if (!publishState || !publishState.changes.length) return;
+  const { branch, changes } = publishState;
+
+  // Name the destination in full. Whose repo this is matters most to someone
+  // who cloned rather than forked: their push is going to fail, and it should
+  // be obvious why before they press anything.
+  const live = branch === 'main' || branch === 'master';
+  const where = publishState.remoteUrl
+    ? publishState.remoteUrl.replace(/^https:\\/\\/|\\.git$/g, '').replace(/^git@([^:]+):/, '$1/')
+    : 'no remote configured';
+  const notes = [];
+  if (!publishState.identity) notes.push('git has no user.name / user.email set yet');
+  if (!publishState.upstream) notes.push('first push — this sets the upstream');
+  document.getElementById('publish-target').innerHTML =
+    'Commit and push <strong>' + branch + '</strong> → ' + where +
+    (live ? ' — this is the live site.' : '.') +
+    (notes.length ? '<br>' + notes.join(' · ') : '');
+
+  document.getElementById('publish-changes').innerHTML = changes
+    .map(c => '<div>' + (c.status === '??' ? '+ ' : c.status + ' ') +
+      c.path.replace('public/images/albums/', '').replace('src/data/', '') + '</div>')
+    .join('');
+
+  publishMessage.value = defaultMessage(changes);
+  publishStatus.textContent = '';
+  publishStatus.className = '';
+  publishPanel.classList.add('open');
+  publishMessage.focus();
+  publishMessage.select();
+}
+
+function closePublishPanel() { publishPanel.classList.remove('open'); }
+
+publishBtn.addEventListener('click', openPublishPanel);
+document.getElementById('publish-cancel').addEventListener('click', closePublishPanel);
+publishPanel.addEventListener('keydown', e => { if (e.key === 'Escape') closePublishPanel(); });
+
+document.getElementById('publish-confirm').addEventListener('click', async () => {
+  const confirmBtn = document.getElementById('publish-confirm');
+  const message = publishMessage.value.trim();
+  if (!message) { publishMessage.focus(); return; }
+
+  // Autosaves are debounced, so a change made seconds ago may still be in
+  // flight. Land them all before git looks at the working tree.
+  await flushAutosave();
+  await homeAutosave.flush();
+  await aboutAutosave.flush();
+  await socialsAutosave.flush();
+  await projectsAutosave.flush();
+
+  confirmBtn.disabled = true;
+  publishStatus.className = '';
+  publishStatus.textContent = 'Publishing…';
+  try {
+    const res  = await fetch('/api/git/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'publish failed');
+    publishStatus.className = 'ok';
+    publishStatus.textContent = 'Pushed ' + data.sha + ' — ' + data.files + ' file' + (data.files === 1 ? '' : 's') + '.';
+    setTimeout(closePublishPanel, 2500);
+  } catch (err) {
+    // Whatever git said, verbatim: an upstream that isn't set or a rejected
+    // push needs the real message, not a tidied one.
+    publishStatus.className = 'error';
+    publishStatus.textContent = err.message;
+  } finally {
+    confirmBtn.disabled = false;
+    refreshPublishState();
+  }
 });
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -1863,6 +2228,23 @@ createServer((req, res) => {
     return;
   }
 
+  // Live-reload stream for the dev site. Held open until the page goes away.
+  if (path === '/api/events') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      // The dev site is a different origin (another port). This server already
+      // refuses anything off loopback, and the stream carries no content —
+      // only "something changed" — so there's nothing here to guard.
+      'Access-Control-Allow-Origin': '*',
+    });
+    res.write('retry: 2000\n\n');
+    reloadClients.add(res);
+    req.on('close', () => reloadClients.delete(res));
+    return;
+  }
+
   if (path.startsWith('/albums/')) {
     // `new URL()` normalises literal "../" segments, but percent-encoded ones
     // survive it and are decoded above — so resolve the final path and confirm
@@ -1913,6 +2295,39 @@ createServer((req, res) => {
     });
   }
 
+  // Publishing. Both are async, so they answer themselves rather than going
+  // through jsonGet/jsonPost, which reply the moment their handler returns.
+  if (path === '/api/git/status' && req.method === 'GET') {
+    gitStatus().then(data => jsonGet(res, data)).catch(err => {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+      logErr('read git status', err);
+    });
+    return;
+  }
+
+  if (path === '/api/git/publish' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { message } = JSON.parse(body);
+        // One line: a commit subject is what shows up in the log, and a stray
+        // newline would silently turn the rest into the body.
+        const subject = String(message ?? '').replace(/\s+/g, ' ').trim().slice(0, 100);
+        if (!subject) throw new Error('a message is required');
+        const result = await gitPublish(subject);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, ...result }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+        logErr('publish', err);
+      }
+    });
+    return;
+  }
+
   if (path === '/api/albums' && req.method === 'GET')  return jsonGet(res, getAlbums());
   if (path === '/api/albums' && req.method === 'POST') {
     return jsonPost(req, res, ({ slug: rawSlug }) => {
@@ -1922,6 +2337,11 @@ createServer((req, res) => {
       if (existsSync(dir)) throw new Error('album already exists');
       mkdirSync(dir, { recursive: true });
       writeFileSync(join(dir, 'info.json'), '{}\n', 'utf-8');
+      // Register it straight away. An album missing from albums.json still
+      // renders — getAlbumSlugs sorts the unlisted ones last — so a new one
+      // looked correctly placed while its position was really just a default,
+      // and stayed unwritten until someone happened to drag something.
+      saveAlbumOrder([...getAlbumOrder().filter(s => s !== slug), slug]);
       log(`Created album ${slug}`);
     });
   }
@@ -2011,10 +2431,21 @@ createServer((req, res) => {
     const albumDir = join(ALBUMS_DIR, slug);
     const base = filename.replace(/\.[^.]+$/, '');
     try {
+      // Derivative names carry a content hash, so they're found rather than
+      // constructed — building `<base>-<width>w.webp` stopped matching anything
+      // when the hash went in, which left every deleted photo's derivatives on
+      // disk and still reachable by URL until the next optimizer run pruned them.
+      const resizedDir = join(albumDir, 'resized');
+      const derivatives = existsSync(resizedDir)
+        ? readdirSync(resizedDir)
+            .filter(f => { const m = DERIVATIVE_RE.exec(f); return m && m[1] === base; })
+            .map(f => join(resizedDir, f))
+        : [];
+
       [
         join(albumDir, DISPLAY_DIR, filename),
         join(albumDir, 'originals', filename),
-        ...DERIV_WIDTHS.map(w => join(albumDir, 'resized', `${base}-${w}w.webp`)),
+        ...derivatives,
       ].forEach(p => { try { unlinkSync(p); } catch {} });
 
       try {
@@ -2024,6 +2455,7 @@ createServer((req, res) => {
         writeFileAtomic(CACHE_FILE, JSON.stringify(cache, null, 2));
       } catch {}
 
+      contentChanged();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('{"ok":true}');
       log(`Deleted photo ${filename} from ${slug}`);
@@ -2055,8 +2487,13 @@ createServer((req, res) => {
       const photos = existsSync(displayDir)
         ? readdirSync(displayDir).filter(f => IMAGE_RE.test(f) && !f.startsWith('.')).sort()
         : [];
+      // The optimizer has just written derivatives for the new photos. Send
+      // them back with the file list: without this the editor holds the thumbs
+      // map it fetched at load, and every photo added this session renders from
+      // its full-size display file until the page is reloaded.
+      contentChanged();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, photos }));
+      res.end(JSON.stringify({ ok: true, photos, thumbs: getThumbs(slug, photos) }));
     });
     return;
   }

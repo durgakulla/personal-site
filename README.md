@@ -160,9 +160,37 @@ Set your domain in `astro.config.mjs`:
 site: 'https://yourdomain.com',
 ```
 
-The admin panel is a local-only editing tool — it does not deploy. Edit
-locally, commit the resulting `display/`/`resized/` images and JSON files,
-and push; Vercel rebuilds the static site from there.
+### Publishing from the admin panel
+
+The admin panel's **Publish** button commits and pushes your content, and
+Vercel rebuilds from there. It runs against whatever git is configured in
+your clone, so in a fork it pushes to *your* repo — there is no account or
+token to set up, and nothing is sent anywhere else.
+
+It stages only the paths the panel itself writes — `public/images/albums/`
+and `src/data/` — so a code change in your working tree is never swept into
+a content publish. Use git directly for those.
+
+Before the first publish, a fresh clone needs the two things any commit
+needs; the panel says so rather than failing halfway:
+
+```bash
+git config user.name "Your Name"
+git config user.email you@example.com
+```
+
+Your clone also needs a remote you can write to. A fork you cloned yourself
+already has one. A clone of *someone else's* repo points at theirs, and the
+push will be rejected — the panel names the destination before you press
+anything, so check it reads as your own repo. To repoint it:
+
+```bash
+git remote set-url origin https://github.com/you/your-site.git
+```
+
+On a branch that has never been pushed, the first publish sets the upstream
+for you. If you'd rather not publish from the browser at all, ignore the
+button: committing and pushing by hand works exactly as it always did.
 
 ## Stack
 

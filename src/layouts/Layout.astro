@@ -43,6 +43,19 @@ function isActive(href: string) {
   return Astro.url.pathname === href || Astro.url.pathname.startsWith(href + '/');
 }
 
+// The local admin editor (npm run admin), linked from a pill that only exists
+// while `astro dev` is running. import.meta.env.DEV is resolved at build time,
+// so the hosted site carries no markup for it at all — not even hidden.
+// The album segment is passed through exactly as the URL spells it: encoded or
+// not, the admin decodes its own pathname, and the browser encodes an href.
+const adminPath = Astro.url.pathname.replace(/\/$/, '');
+const adminAlbum = adminPath.match(/^\/albums\/(.+)$/);
+const adminHref = 'http://localhost:4001' + (
+  adminAlbum                  ? `/album/${adminAlbum[1]}` :
+  adminPath === '/about'      ? '/about' :
+  adminPath === '/projects'   ? '/projects' : '/'
+);
+
 const logoColors = ['#c2542f', '#d9a441', '#2f6f6a', '#7a8b4f', '#a8433a', '#c9a066'];
 
 const [logoFirstLine, ...logoRestWords] = about.name.split(' ');
@@ -164,14 +177,6 @@ const logoSecondLine = logoRestWords.join(' ');
           <span class="hidden dark:inline">Light</span>
         </button>
 
-        <!-- Admin link: shown only when viewing the site locally -->
-        <a id="admin-link" href="http://localhost:4001" class="hidden items-center gap-2 text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors text-xs">
-          <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-          </svg>
-          Admin
-        </a>
-
         <!-- Social icons -->
         <div class="flex flex-wrap gap-x-4 gap-y-3 max-w-full">
           {socials.map(({ label, href }) => (
@@ -182,6 +187,8 @@ const logoSecondLine = logoRestWords.join(' ');
         <p class="text-[10px] text-stone-300 dark:text-stone-700">
           &copy; {new Date().getFullYear()} {about.name}
         </p>
+
+        {import.meta.env.DEV && <div class="h-12 shrink-0" aria-hidden="true"></div>}
       </div>
     </aside>
 
@@ -227,6 +234,21 @@ const logoSecondLine = logoRestWords.join(' ');
       </main>
     </div>
 
+    <!-- Dev only. z-40 sits above the sticky sidebar (also z-40, but earlier in
+         the document) and below the lightbox at z-50, which should cover it. -->
+    {import.meta.env.DEV && (
+      <a
+        id="admin-pill"
+        href={adminHref}
+        class="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full border border-stone-200 dark:border-stone-700 bg-white/90 dark:bg-stone-900/90 backdrop-blur px-3.5 py-2 text-xs font-semibold text-stone-500 dark:text-stone-400 shadow-sm hover:text-stone-900 dark:hover:text-stone-100 hover:border-stone-300 dark:hover:border-stone-600 transition-colors"
+      >
+        <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        Admin
+      </a>
+    )}
+
   </body>
 </html>
 
@@ -240,11 +262,44 @@ const logoSecondLine = logoRestWords.join(' ');
     document.getElementById('albums-arrow')?.classList.toggle('rotate-180');
   });
 
-  // ── Admin link: only reveal when this site itself is running locally ───────────
-  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
-    const adminLink = document.getElementById('admin-link');
-    adminLink?.classList.remove('hidden');
-    adminLink?.classList.add('flex');
+  // ── Live reload from the admin (dev only) ────────────────────────────────────
+  // The admin pushes an event whenever it writes content, and the dev server
+  // re-reads from disk on every request — so a reload is all it takes to show
+  // an edit made in the other window. import.meta.env.DEV is a build-time
+  // constant, so none of this reaches the built site.
+  if (import.meta.env.DEV) {
+    const adminPill = document.getElementById('admin-pill');
+    let source: EventSource | null = null;
+    let retry = 0;
+
+    const connect = () => {
+      source?.close();
+      source = new EventSource('http://localhost:4001/api/events');
+
+      source.onopen = () => {
+        retry = 0;
+        adminPill?.classList.remove('opacity-40');
+        if (adminPill) adminPill.title = '';
+      };
+
+      source.addEventListener('content', () => location.reload());
+
+      source.onerror = () => {
+        // The admin isn't running (or just stopped). EventSource would retry
+        // forever on its own and fill the console doing it, so back off here
+        // instead, and say so on the pill rather than leaving a dead link.
+        source?.close();
+        adminPill?.classList.add('opacity-40');
+        if (adminPill) adminPill.title = 'Not running — start it with: npm run admin';
+        setTimeout(connect, Math.min(1000 * 2 ** retry++, 30000));
+      };
+    };
+
+    connect();
+    // Coming back to the tab is the moment to stop waiting out a long backoff.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && source?.readyState !== EventSource.OPEN) connect();
+    });
   }
 
   // ── Image fade-in ────────────────────────────────────────────────────────────
