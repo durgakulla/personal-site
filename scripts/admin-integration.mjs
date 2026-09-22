@@ -15,6 +15,16 @@ export default function adminPanel({ base = '/admin' } = {}) {
   return {
     name: 'admin-panel',
     hooks: {
+      // The site's own dev-only pieces — the pill and the live-reload client in
+      // src/layouts/Layout.astro — have to point at wherever this is mounted.
+      // Handing them the value is what keeps `base` honest: hardcoding /admin
+      // over there would quietly break every fork that changes it.
+      'astro:config:setup': ({ updateConfig }) => {
+        updateConfig({
+          vite: { define: { 'import.meta.env.ADMIN_BASE': JSON.stringify(base) } },
+        });
+      },
+
       'astro:server:setup': ({ server, logger }) => {
         // Connect strips this prefix before the handler sees the request, which
         // is why the handler's routes are written as though it were mounted at

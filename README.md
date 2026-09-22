@@ -58,7 +58,8 @@ compiled out of the deployed site entirely.
 
 It also refuses any request that doesn't come from your own machine, so
 `astro dev --host` (which serves the site to your network) never exposes an API
-that writes to your repo.
+that writes to your repo. Viewed from another device that way, the site works
+normally and the editor simply isn't offered.
 
 ## Using the Admin Panel
 
@@ -210,7 +211,7 @@ button: committing and pushing by hand works exactly as it always did.
 - [Tailwind CSS v4](https://tailwindcss.com) — styling
 - [Sharp](https://sharp.pixelplumbing.com) — build-time image optimization
 - [exifr](https://github.com/MikeKovarik/exifr) — EXIF extraction
-- A small vanilla Node HTTP server (`scripts/admin.mjs`) — the admin panel, no framework, no build step; mounted into the dev server as middleware, or run on its own port
+- A small vanilla Node HTTP server (`scripts/admin.mjs`) — the admin panel, no framework, no build step; mounted into the dev server as middleware by `scripts/admin-integration.mjs`
 
 ### Notes for forks
 

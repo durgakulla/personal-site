@@ -56,7 +56,13 @@ function writeFileAtomic(file, contents) {
 let active = null;
 
 function setActiveHandler(next) {
-  if (active) clearInterval(active.keepalive);
+  if (active) {
+    clearInterval(active.keepalive);
+    // The pending one too: a save can schedule a broadcast microseconds before a
+    // restart tears the sockets down, and that timer would otherwise outlive the
+    // handler and write to responses that no longer exist.
+    clearTimeout(active.broadcastTimer());
+  }
   active = next;
 }
 
@@ -697,10 +703,9 @@ function renderShell({ base }) {
 // static import can carry what is otherwise a runtime value.
 import { aspectFromRatio, toDisplayName, effectiveCover, planMasonry } from '${base}/layout.mjs';
 
-// Where this editor is mounted, and where the site is. Everything the page
-// requests is built from these, so the same client code works whether it was
-// served by the Astro dev server at /admin or by the standalone server at the
-// root of its own port.
+// Where this editor is mounted. Everything the page requests is built from it,
+// so the mount point is configurable (adminPanel({ base }) in astro.config.mjs)
+// without a single URL in here being hardcoded to /admin.
 const BASE = ${JSON.stringify(base)};
 const API = BASE + '/api';
 const ASSET_BASE = BASE + '/albums';
@@ -751,8 +756,8 @@ function routePath(view, slug) {
 function parseRoute() {
   let path;
   try { path = decodeURIComponent(location.pathname); } catch { path = location.pathname; }
-  // Match against the path within the editor, so the same regexes work at the
-  // root of the standalone server and under /admin inside Astro.
+  // Match against the path within the editor, so these regexes don't care what
+  // the mount point is.
   if (BASE && path.startsWith(BASE)) path = path.slice(BASE.length) || '/';
   const m = path.match(/^\\/album\\/(.+?)\\/?$/);
   if (m) return { view: 'album', slug: m[1] };
@@ -2212,10 +2217,10 @@ load();
 }
 
 /**
- * The editor as a middleware. `base` is where it's mounted — '' standalone, or
- * '/admin' inside the Astro dev server — and is needed only by the page it
- * serves: Connect strips the mount prefix before the handler sees a request, so
- * every route below matches identically either way.
+ * The editor as a middleware. `base` is where it's mounted ('/admin' by
+ * default) and is needed only by the page it serves: Connect strips the mount
+ * prefix before the handler sees a request, so every route below matches
+ * regardless of where it hangs.
  *
  * Synchronous on purpose, and so is the middleware it returns: the upload route
  * has to reach req.pipe() in the same tick or the first chunks are lost.
@@ -2229,12 +2234,17 @@ export function createAdminHandler({ base = '' } = {}) {
   let broadcastTimer = null;
 
   setActiveHandler({
+    broadcastTimer: () => broadcastTimer,
     broadcast() {
       // Writes arrive in bursts — a drag reorders and autosaves, an upload lands
       // several files — and one reload at the end of the burst is enough.
       clearTimeout(broadcastTimer);
       broadcastTimer = setTimeout(() => {
-        for (const res of reloadClients) res.write('event: content\ndata: {}\n\n');
+        for (const res of reloadClients) {
+          // Same reason the keepalive below guards: a subscriber's socket can be
+          // gone by the time this fires.
+          try { res.write('event: content\ndata: {}\n\n'); } catch { reloadClients.delete(res); }
+        }
       }, 200);
     },
     // Loopback needs no keepalive, but this is how a connection dropped without
@@ -2248,10 +2258,9 @@ export function createAdminHandler({ base = '' } = {}) {
   });
 
   return function admin(req, res, next) {
-  // The standalone server binds to loopback, but mounted inside Astro this rides
-  // on whatever `astro dev` bound — and `--host` binds every interface. So the
-  // guarantee has to live here rather than in a bind: this API writes the repo
-  // and runs `git push`, and must answer nobody but this machine.
+  // This rides on whatever `astro dev` bound, and `--host` binds every
+  // interface. So the guarantee lives here rather than in a bind: this API
+  // writes the repo and runs `git push`, and must answer nobody but this machine.
   if (!isLocalRequest(req)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('The admin panel only answers requests from this machine.\n');
@@ -2266,9 +2275,11 @@ export function createAdminHandler({ base = '' } = {}) {
 
   // A page on another origin can reach a localhost port through the browser, and
   // neither Vite's CORS defaults (any localhost port) nor Astro's Sec-Fetch rules
-  // (same-site, and any navigation) stop a cross-origin form POST. The stream is
-  // exempt: standalone, the site is genuinely another origin and subscribes to it.
-  if (path.startsWith('/api/') && path !== '/api/events' && !isSameOrigin(req)) {
+  // (same-site, and any navigation) stop a cross-origin form POST. This covers
+  // the event stream too: the site subscribing to it is now same-origin, so
+  // nothing legitimate needs an exemption, and without one no other site can
+  // watch you save.
+  if (path.startsWith('/api/') && !isSameOrigin(req)) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end('{"error":"cross-origin request blocked"}');
     return;
@@ -2290,10 +2301,6 @@ export function createAdminHandler({ base = '' } = {}) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      // The dev site is a different origin (another port). This server already
-      // refuses anything off loopback, and the stream carries no content —
-      // only "something changed" — so there's nothing here to guard.
-      'Access-Control-Allow-Origin': '*',
     });
     res.write('retry: 2000\n\n');
     reloadClients.add(res);
