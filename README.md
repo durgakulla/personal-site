@@ -8,9 +8,10 @@ your name/bio/tagline, projects) without touching code or the filesystem by hand
 
 **Demo:** [durgakulla.com](https://durgakulla.com)
 
-> The content currently committed here is the author's own. To make this
-> your site, replace `src/data/*` and `public/images/albums/*` with your own —
-> or just use the admin panel to do it for you.
+> The photos and text committed here are mine, so a fork starts as a copy of my
+> site. [Getting Started](#getting-started) walks through replacing them — the
+> admin panel does the whole job, no files to edit by hand. Please do swap the
+> photographs out rather than publishing them as part of your own site.
 
 ## Features
 
@@ -33,9 +34,15 @@ your name/bio/tagline, projects) without touching code or the filesystem by hand
 
 Requires Node 22.12+.
 
+**1. Fork this repo.** Use the Fork button on GitHub, so you get a copy you can
+push to — that's what the admin panel's Publish button pushes to later. Your
+fork arrives with the demo content (my photos, my bio); step 4 replaces it.
+
+**2. Clone your fork and start it.**
+
 ```bash
-git clone <your-fork-url>
-cd personal-site
+git clone https://github.com/<you>/<your-fork>.git
+cd <your-fork>
 npm install
 npm run dev        # → http://localhost:4321
 ```
@@ -48,9 +55,36 @@ content:
 | `http://localhost:4321` | the site |
 | `http://localhost:4321/admin` | the editor |
 
-A small pill sits in the bottom-left corner of each, pointing at the other's
-matching page — editing an album and clicking through lands you on that album.
-The site reloads by itself whenever you save something in the editor.
+**3. Set your domain** in `astro.config.mjs`. It's what the sitemap, canonical
+URLs and Open Graph tags are built from — not routing, so the site runs fine
+until you have one.
+
+```js
+site: 'https://yourdomain.com',
+```
+
+**4. Replace the demo content.** All of it is editable at
+`localhost:4321/admin`, and none of it needs a text editor:
+
+| In the editor | What it replaces |
+|---|---|
+| **Home** | the site name and homepage tagline — your name is the wordmark, the page title and the copyright line |
+| **About** | heading, bio paragraphs, gear list, and the social links |
+| **Projects** | the projects list |
+| **Albums** | Delete Album on each of mine, then **+ New Album** and drag your photos straight in |
+
+Every page handles being empty, so you can clear the albums out before you have
+your own photos ready and the site still builds and looks intentional.
+
+When you like what you see, the editor's **Publish** button commits and pushes
+it to your fork — see [Publishing from the admin panel](#publishing-from-the-admin-panel).
+
+### What you're running
+
+The site and the editor each carry a small pill in the bottom-left corner
+pointing at the other's matching page — editing an album and clicking through
+lands you on that album on the site, and back again. The site reloads by itself
+whenever you save something in the editor.
 
 Both are dev-only. The editor is mounted by an Astro integration that registers
 a dev-server hook and nothing else, so it cannot reach a build — and the pill is
@@ -117,8 +151,8 @@ Each album folder looks like this once you've added photos:
 public/images/albums/your-album/
   info.json         # name, date, description, cover, photo order
   originals/         # your full-res source files — gitignored, never touched again
-  display/            # optimized ~2000px-longest-edge copies — what the site actually serves
-  resized/             # smaller WebP derivatives (480w/960w/1440w) for responsive srcset
+  display/            # optimized 1600px-longest-edge copies — what the site actually serves
+  resized/             # AVIF + WebP derivatives (480w/960w/1440w) for responsive srcset
 ```
 
 Drop full-res files into `originals/`, then run:
@@ -133,17 +167,23 @@ node scripts/optimize-images.mjs
 you never need to run it by hand while using the admin panel.)
 
 For each photo, this generates:
-- A **display copy** in `display/` — longest edge capped at 2000px (whichever
+- A **display copy** in `display/` — longest edge capped at 1600px (whichever
   dimension that is, so portraits and landscapes get equivalent treatment),
-  85% JPEG quality, EXIF preserved. This is the largest image the site ever
-  serves.
-- Three **responsive derivatives** in `resized/` (480w/960w/1440w WebP) so the
-  browser's native `srcset`/`sizes` picks the smallest image that still looks
-  sharp at the size it's actually being displayed.
+  85% quality, camera EXIF preserved plus a copyright/creator stamp taken from
+  your `about.json`. This is the largest image the site ever serves, which is
+  also the largest anyone can copy from it — the cap is deliberate.
+- **Responsive derivatives** in `resized/`, at 480w/960w/1440w in both AVIF and
+  WebP, offered through a `<picture>` element so the browser takes the best
+  format it can decode at the smallest size that still looks sharp. Their
+  filenames carry a content hash, which is what lets `vercel.json` cache them
+  for a year: change a photo and it gets a new URL.
 
 The optimizer is incremental — it caches by source file modification time
 (`public/images/albums/.optimize-cache.json`), so re-running it only
-reprocesses photos that actually changed.
+reprocesses photos that actually changed. The cache also records the settings
+that produced each file, so changing any of them (the size cap, a quality, the
+formats, or the name stamped into the EXIF) correctly rebuilds every image —
+expect the first build after such a change to be slow.
 
 Albums are ordered via `src/data/albums.json` (edit through the admin
 sidebar's drag-and-drop, not by hand); within an album, `info.json`'s `order`
@@ -164,14 +204,16 @@ is plain JSON if you'd rather:
 
 ## Deployment
 
-Connect your GitHub repo to [Vercel](https://vercel.com) — it picks up the
-build command (`node scripts/optimize-images.mjs && astro build`)
-automatically from `package.json`.
+Connect your fork to [Vercel](https://vercel.com) — it picks up the build
+command (`node scripts/optimize-images.mjs && astro build`) automatically from
+`package.json`. Every push to `main` then rebuilds the site, including the ones
+the Publish button makes.
 
-Set your domain in `astro.config.mjs`:
-```js
-site: 'https://yourdomain.com',
-```
+The site is fully static, so nothing in `scripts/` runs in production — the
+admin panel exists only while `npm run dev` is running on your own machine.
+
+Don't forget `site:` in `astro.config.mjs` (step 3 above) — without it the
+sitemap and Open Graph tags point at the wrong domain.
 
 ### Publishing from the admin panel
 
